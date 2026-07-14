@@ -1,6 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   createProductAction,
@@ -8,6 +11,13 @@ import {
   type ProductActionState,
 } from "@/app/admin/(protected)/products/actions";
 import type { AdminProductDetail } from "@/lib/catalog/admin-data";
+import {
+  readImageDimensions,
+  releasePendingImagePreviews,
+  type PendingProductImage,
+  uploadPendingProductImages,
+} from "@/lib/catalog/client-image-upload";
+import { MAX_IMAGE_BATCH, validateClientImageFile } from "@/lib/catalog/media-validation";
 
 import { SubmitButton } from "./submit-button";
 
@@ -20,11 +30,100 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 const inputClass = "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 shadow-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100";
 
 export function ProductForm({ product }: { product?: AdminProductDetail }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const completionStarted = useRef(false);
+  const pendingImagesRef = useRef<PendingProductImage[]>([]);
+  const [pendingImages, setPendingImages] = useState<PendingProductImage[]>([]);
+  const [imageMessage, setImageMessage] = useState("");
+  const [isCompleting, setIsCompleting] = useState(false);
   const action = product ? updateProductAction.bind(null, product.id) : createProductAction;
   const [state, formAction] = useActionState(action, initialState);
 
+  useEffect(() => () => releasePendingImagePreviews(pendingImagesRef.current), []);
+
+  useEffect(() => {
+    if (product || state.status !== "success" || !state.productId || completionStarted.current) return;
+    completionStarted.current = true;
+    setIsCompleting(true);
+    const productId = state.productId;
+    const selectedImages = pendingImagesRef.current;
+
+    if (selectedImages.length === 0) {
+      router.replace(`/admin/products/${productId}?saved=created`);
+      return;
+    }
+
+    setImageMessage(`草稿已创建，正在上传 ${selectedImages.length} 张图片…`);
+    void (async () => {
+      try {
+        const result = await uploadPendingProductImages(productId, selectedImages);
+        router.replace(`/admin/products/${productId}?saved=${result.status === "success" ? "created_with_images" : "created_image_failed"}`);
+      } catch {
+        router.replace(`/admin/products/${productId}?saved=created_image_failed`);
+      }
+    })();
+  }, [product, router, state.productId, state.status]);
+
+  function replacePendingImages(next: PendingProductImage[]) {
+    releasePendingImagePreviews(pendingImagesRef.current);
+    pendingImagesRef.current = next;
+    setPendingImages(next);
+  }
+
+  async function selectInitialImages(files: FileList | null) {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    if (selected.length > MAX_IMAGE_BATCH) {
+      setImageMessage(`每次最多选择 ${MAX_IMAGE_BATCH} 张图片。`);
+      return;
+    }
+
+    const formValues = formRef.current ? new FormData(formRef.current) : null;
+    const title = formValues?.get("title");
+    const titlePrefix = typeof title === "string" && title.trim() ? title.trim() : "商品";
+    const next: PendingProductImage[] = [];
+    for (const [index, file] of selected.entries()) {
+      const validation = validateClientImageFile(file);
+      if (!validation.success) {
+        releasePendingImagePreviews(next);
+        setImageMessage(validation.message);
+        return;
+      }
+      const dimensions = await readImageDimensions(file);
+      next.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+        altText: `${titlePrefix} 图片 ${index + 1}`,
+        variantId: "",
+        ...dimensions,
+      });
+    }
+    replacePendingImages(next);
+    setImageMessage("");
+  }
+
+  function updatePendingImage(index: number, altText: string) {
+    setPendingImages((current) => {
+      const next = current.map((image, imageIndex) => imageIndex === index ? { ...image, altText } : image);
+      pendingImagesRef.current = next;
+      return next;
+    });
+  }
+
+  function removePendingImage(index: number) {
+    setPendingImages((current) => {
+      URL.revokeObjectURL(current[index].previewUrl);
+      const next = current.filter((_, imageIndex) => imageIndex !== index);
+      pendingImagesRef.current = next;
+      if (fileInput.current && next.length === 0) fileInput.current.value = "";
+      return next;
+    });
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form action={formAction} className="space-y-8" ref={formRef}>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-basic-heading">
         <h2 className="text-lg font-semibold" id="product-basic-heading">基础内容</h2>
         <div className="mt-5 grid gap-5">
@@ -54,7 +153,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-seo-heading">
         <h2 className="text-lg font-semibold" id="product-seo-heading">SEO</h2>
-        <p className="mt-1 text-sm text-slate-500">留空时，公开页面将在 Phase 6 使用商品标题与描述生成默认值。</p>
+        <p className="mt-1 text-sm text-slate-500">留空时，公开页面会使用商品标题与描述生成默认值。</p>
         <div className="mt-5 grid gap-5">
           <label className="block font-medium" htmlFor="seoTitle">
             SEO 标题
@@ -69,11 +168,68 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         </div>
       </section>
 
+      {!product ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="initial-images-heading">
+          <h2 className="text-lg font-semibold" id="initial-images-heading">商品图片</h2>
+          <p className="mt-1 text-sm text-slate-600">可以在创建商品时一起选择图片。系统会先创建草稿，再将图片上传为商品通用图；创建后仍可调整封面、顺序和规格关联。</p>
+          <label className="mt-5 block font-medium" htmlFor="initialProductImages">
+            选择商品图片
+            <input
+              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-2 file:font-semibold file:text-sky-900`}
+              id="initialProductImages"
+              multiple
+              onChange={(event) => void selectInitialImages(event.target.files)}
+              ref={fileInput}
+              type="file"
+            />
+          </label>
+          <p className="mt-2 text-sm text-slate-500">每次最多 20 张 JPEG、PNG 或 WebP；单张不超过 10 MiB。上传前请检查预览和替代文字。</p>
+
+          {pendingImages.length ? (
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {pendingImages.map((image, index) => (
+                <article className="rounded-xl border border-slate-200 p-4" key={`${image.file.name}-${image.file.lastModified}`}>
+                  <img alt="待上传预览" className="aspect-[4/5] w-full rounded-xl bg-slate-100 object-cover" src={image.previewUrl} />
+                  <p className="mt-2 truncate text-xs text-slate-500">{image.file.name} · {(image.file.size / 1024 / 1024).toFixed(2)} MiB</p>
+                  <label className="mt-3 block text-sm font-medium">
+                    替代文字 <span className="text-rose-600" aria-hidden="true">*</span>
+                    <input
+                      className={`${inputClass} mt-1`}
+                      maxLength={300}
+                      onChange={(event) => updatePendingImage(index, event.target.value)}
+                      required
+                      value={image.altText}
+                    />
+                  </label>
+                  <button
+                    className="mt-3 min-h-11 rounded-xl border border-rose-300 px-3 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                    onClick={() => removePendingImage(index)}
+                    type="button"
+                  >
+                    移除此图片
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          <p
+            aria-live="polite"
+            className={`mt-4 text-sm ${imageMessage.includes("失败") || imageMessage.includes("必须") || imageMessage.includes("最多") ? "text-rose-700" : "text-sky-800"}`}
+            role="status"
+          >
+            {imageMessage}
+          </p>
+        </section>
+      ) : null}
+
       <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
         <p aria-live="polite" className={state.status === "error" ? "text-sm text-rose-700" : "text-sm text-emerald-700"} role={state.status === "error" ? "alert" : undefined}>
-          {state.message}
+          {isCompleting && imageMessage ? imageMessage : state.message}
         </p>
-        <SubmitButton pendingLabel="保存中…">{product ? "保存商品" : "创建草稿"}</SubmitButton>
+        <SubmitButton disabled={isCompleting || Boolean(state.productId)} pendingLabel={product ? "保存中…" : "正在创建草稿…"}>
+          {product ? "保存商品" : pendingImages.length ? "创建草稿并上传图片" : "创建草稿"}
+        </SubmitButton>
       </div>
     </form>
   );

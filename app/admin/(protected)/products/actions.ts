@@ -16,6 +16,7 @@ export type ProductActionState = {
   status: "idle" | "error" | "success";
   message: string;
   fieldErrors: Partial<Record<ProductField, string>>;
+  productId?: string;
 };
 
 function productErrorState(errorCode?: string): ProductActionState {
@@ -55,7 +56,12 @@ export async function createProductAction(
 
   if (error || typeof data !== "string") return productErrorState(error?.code);
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${data}?saved=created`);
+  return {
+    status: "success",
+    message: "商品草稿已创建，正在完成后续处理。",
+    fieldErrors: {},
+    productId: data,
+  };
 }
 
 export async function updateProductAction(

@@ -6,44 +6,27 @@ import { useRouter } from "next/navigation";
 
 import {
   deleteProductImageAction,
-  registerUploadedImagesAction,
   saveProductImagesAction,
   type MediaActionState,
 } from "@/app/admin/(protected)/products/[id]/media-actions";
 import type { AdminProductImage } from "@/lib/catalog/admin-images";
 import {
+  readImageDimensions,
+  releasePendingImagePreviews,
+  type PendingProductImage,
+  uploadPendingProductImages,
+} from "@/lib/catalog/client-image-upload";
+import {
   MAX_IMAGE_BATCH,
-  PRODUCT_IMAGE_BUCKET,
   validateClientImageFile,
 } from "@/lib/catalog/media-validation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 import { SubmitButton } from "./submit-button";
 
 const initialState: MediaActionState = { status: "idle", message: "" };
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
 
-type PendingImage = {
-  file: File;
-  previewUrl: string;
-  altText: string;
-  variantId: string;
-  width: number | null;
-  height: number | null;
-};
-
 type VariantChoice = { id: string; label: string };
-
-async function imageDimensions(file: File) {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const dimensions = { width: bitmap.width, height: bitmap.height };
-    bitmap.close();
-    return dimensions;
-  } catch {
-    return { width: null, height: null };
-  }
-}
 
 export function ImageManager({
   productId,
@@ -58,18 +41,18 @@ export function ImageManager({
 }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
-  const pendingImagesRef = useRef<PendingImage[]>([]);
+  const pendingImagesRef = useRef<PendingProductImage[]>([]);
   const [images, setImages] = useState(initialImages);
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [pendingImages, setPendingImages] = useState<PendingProductImage[]>([]);
   const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [saveState, saveAction] = useActionState(saveProductImagesAction.bind(null, productId), initialState);
 
-  useEffect(() => () => pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl)), []);
+  useEffect(() => () => releasePendingImagePreviews(pendingImagesRef.current), []);
 
-  function replacePendingImages(next: PendingImage[]) {
-    pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+  function replacePendingImages(next: PendingProductImage[]) {
+    releasePendingImagePreviews(pendingImagesRef.current);
     pendingImagesRef.current = next;
     setPendingImages(next);
   }
@@ -81,7 +64,7 @@ export function ImageManager({
       setMessage(`每次最多选择 ${MAX_IMAGE_BATCH} 张图片。`);
       return;
     }
-    const next: PendingImage[] = [];
+    const next: PendingProductImage[] = [];
     for (const [index, file] of selected.entries()) {
       const validation = validateClientImageFile(file);
       if (!validation.success) {
@@ -89,7 +72,7 @@ export function ImageManager({
         setMessage(validation.message);
         return;
       }
-      const dimensions = await imageDimensions(file);
+      const dimensions = await readImageDimensions(file);
       next.push({
         file,
         previewUrl: URL.createObjectURL(file),
@@ -102,7 +85,7 @@ export function ImageManager({
     setMessage("");
   }
 
-  function updatePending(index: number, values: Partial<PendingImage>) {
+  function updatePending(index: number, values: Partial<PendingProductImage>) {
     setPendingImages((current) => current.map((image, imageIndex) => imageIndex === index ? { ...image, ...values } : image));
   }
 
@@ -113,45 +96,8 @@ export function ImageManager({
     }
     setIsUploading(true);
     setMessage("");
-    const supabase = createSupabaseBrowserClient();
-    const uploadedPaths: string[] = [];
-    const registrations = [];
-
-    for (const image of pendingImages) {
-      const validation = validateClientImageFile(image.file);
-      if (!validation.success) {
-        if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
-        setMessage(validation.message);
-        setIsUploading(false);
-        return;
-      }
-      const id = crypto.randomUUID();
-      const path = `products/${productId}/${id}.${validation.values.extension}`;
-      const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, image.file, {
-        cacheControl: "3600",
-        contentType: image.file.type,
-        upsert: false,
-      });
-      if (error) {
-        if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
-        setMessage("上传失败；本批已上传文件已撤销。请确认管理员会话、类型和 10 MiB 限制后重试。");
-        setIsUploading(false);
-        return;
-      }
-      uploadedPaths.push(path);
-      registrations.push({
-        id,
-        storagePath: path,
-        altText: image.altText.trim(),
-        variantId: image.variantId || null,
-        width: image.width,
-        height: image.height,
-      });
-    }
-
-    const result = await registerUploadedImagesAction(productId, JSON.stringify(registrations));
+    const result = await uploadPendingProductImages(productId, pendingImages);
     if (result.status === "error") {
-      if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
       setMessage(result.message);
       setIsUploading(false);
       return;

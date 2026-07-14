@@ -7,11 +7,13 @@ export function SubmitButton({
   pendingLabel = "处理中…",
   variant = "primary",
   confirmMessage,
+  disabled = false,
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   variant?: "primary" | "secondary" | "danger";
   confirmMessage?: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   const styles = {
@@ -23,7 +25,7 @@ export function SubmitButton({
   return (
     <button
       className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${styles}`}
-      disabled={pending}
+      disabled={pending || disabled}
       onClick={(event) => {
         if (confirmMessage && !window.confirm(confirmMessage)) event.preventDefault();
       }}

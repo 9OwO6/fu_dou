@@ -41,7 +41,20 @@ export default async function EditProductPage({ params, searchParams }: { params
         </div>
         <ProductActions product={product} />
       </div>
-      {saved ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800" role="status">{saved === "duplicated" ? "副本已创建为草稿；规格和图片没有被复制。" : "商品草稿已创建。"}</p> : null}
+      {saved ? (
+        <p
+          className={`rounded-xl border p-4 ${saved === "created_image_failed" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}
+          role="status"
+        >
+          {saved === "duplicated"
+            ? "副本已创建为草稿；规格和图片没有被复制。"
+            : saved === "created_with_images"
+              ? "商品草稿与首批图片已创建。请继续完善分类、规格、价格和库存。"
+              : saved === "created_image_failed"
+                ? "商品草稿已创建，但首批图片没有完成上传。请在下方“商品图片”区域重新选择并上传。"
+                : "商品草稿已创建。"}
+        </p>
+      ) : null}
       <ProductForm product={product} />
       <ProductCategorySelector productId={product.id} selection={categorySelection} />
       <div className="border-t border-slate-200 pt-6">
