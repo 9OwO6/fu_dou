@@ -5,7 +5,7 @@
 
 ## 仓库现状
 
-- 当前目录已初始化为 Git 仓库，当前分支为 `main`，远端 `origin` 为 `https://github.com/9OwO6/fu_dou.git`；尚未创建 commit，也未 push。
+- 当前目录已初始化为 Git 仓库，当前分支为 `main`，远端 `origin` 为 `https://github.com/9OwO6/fu_dou.git`；首个实现 commit 已推送，Vercel 店主试用部署已连接该仓库。
 - 根目录已有实体 `AGENTS.md`，后续任务必须完整读取并遵循。
 - Phase 1–5B 与 Phase 6 已完成；Phase 5C 实现与自动化检查已完成，仍等待 OS 文件选择上传和页面删除按钮两项人工验收后关闭 Phase。
 - 主 Logo 已保存到 `assets/brand/happy-beans-logo-primary.jpg`；原图为 1080×1080 白底 JPEG，品牌名称按图确认成 `Happy Beans / 福豆`。
@@ -661,4 +661,21 @@
 - 有意延后内容：Phase 10 全站 E2E/可访问性/安全 QA、Phase 11 Preview/Production、英文正式内容、自由拖拽和任意代码编辑。
 - 当前 Phase 是否真正完成：是。功能、三层 schema 校验、RLS/RPC、显隐、排序、自动/手动选品、安全降级、桌面/笔记本/手机和真实保存到前台更新路径均已验证。
 - 下一 Phase 是否具备启动条件：Phase 9 自身已满足交接条件；但 Phase 10 依赖 Phase 3–9 全部关闭，当前 Phase 5C 仍有 OS 文件选择/删除确认人工缺口，Phase 8 仍缺真实 Resend 两封邮件验收，因此严格流程下暂不应启动 Phase 10。
-- Git 与外部操作：未 commit、未 push、未部署；本地 migration 尚未推送到云端开发 Supabase。未经用户明确要求不会执行这些外部操作。
+- Git 与外部操作：Phase 9 完成时尚未 commit、push 或部署；后续经用户明确授权，已完成首个 commit/push、云端 migration 和店主试用部署，详见下方部署记录。
+
+## 店主试用部署记录
+
+- 部署日期：2026-07-13（America/Vancouver）。
+- Git：首个实现 commit `9633920b1b15420d84f5dcb5bed893d7b8205e63` 已推送到 `origin/main`。
+- Supabase：云端开发项目 `happy-beans-dev` 已应用包括 Phase 9 在内的全部 9 个 migration；远端 migration history 与本地一致。
+- 管理员：Supabase Auth 中已建立并确认店主用户；`public.profiles` 中只有 1 条 profile、1 个 `role = admin`，且与该 Auth 用户 UUID 一致。密码未进入仓库、日志或文档。
+- Vercel：已新建并部署 `happy-beans-fudou`，连接 `9OwO6/fu_dou` 的 `main` 分支；旧版 `happy-beans` 项目未修改。
+- 试用地址：`https://happy-beans-fudou.vercel.app`；这是使用 Vercel 默认域名的店主试用部署，不代表已完成正式域名、邮件和 Production 上线验收。
+- 环境变量：已在 Vercel 的 Production 与 Preview 环境配置 `NEXT_PUBLIC_SITE_URL`、`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`；没有向浏览器或仓库加入 Supabase secret key。
+- 线上 smoke test：
+  - `/zh` 可正常打开，Header、Hero、热门分类、新品、推荐、特价、品牌故事、履约说明、FAQ 与联系 CTA 均由云端配置渲染；无真实商品时显示受控空状态。
+  - 未登录访问 `/admin` 会跳转至 `/admin/login?reason=session_required`，登录表单可用。
+  - 未使用店主密码代登录；店主仍需亲自完成首次登录、退出和真实商品创建验收。
+- 当前可用范围：店主可登录后台维护分类、商品、规格、SKU、CAD 价格、库存、图片、上下架/新品/推荐/特价和首页配置。
+- 尚未配置：`SUPABASE_SECRET_KEY`、`ORDER_RATE_LIMIT_SECRET` 与 Resend 邮件变量，因此订单请求提交和双邮件通知不属于本次可验收范围；不得把当前试用部署描述为完整上线。
+- 回滚路径：Vercel 可回退到此前成功 deployment；数据库变更均来自正式 migration，但涉及真实录入数据时不得通过 reset 回滚。
