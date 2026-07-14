@@ -1,0 +1,32 @@
+# dependencies
+/node_modules/
+/.pnp/
+.pnp.*
+
+# tests
+/coverage/
+/playwright-report/
+/test-results/
+
+# Next.js and production output
+/.next/
+/out/
+/build/
+
+# local environment files: only the value-free template is committed
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# logs and local tooling
+*.log
+*.pem
+.DS_Store
+Thumbs.db
+
+# TypeScript generated files
+*.tsbuildinfo
+next-env.d.ts

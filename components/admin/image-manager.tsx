@@ -1,0 +1,278 @@
+/* eslint-disable @next/next/no-img-element */
+"use client";
+
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  deleteProductImageAction,
+  registerUploadedImagesAction,
+  saveProductImagesAction,
+  type MediaActionState,
+} from "@/app/admin/(protected)/products/[id]/media-actions";
+import type { AdminProductImage } from "@/lib/catalog/admin-images";
+import {
+  MAX_IMAGE_BATCH,
+  PRODUCT_IMAGE_BUCKET,
+  validateClientImageFile,
+} from "@/lib/catalog/media-validation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+import { SubmitButton } from "./submit-button";
+
+const initialState: MediaActionState = { status: "idle", message: "" };
+const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+
+type PendingImage = {
+  file: File;
+  previewUrl: string;
+  altText: string;
+  variantId: string;
+  width: number | null;
+  height: number | null;
+};
+
+type VariantChoice = { id: string; label: string };
+
+async function imageDimensions(file: File) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  } catch {
+    return { width: null, height: null };
+  }
+}
+
+export function ImageManager({
+  productId,
+  productTitle,
+  initialImages,
+  variants,
+}: {
+  productId: string;
+  productTitle: string;
+  initialImages: AdminProductImage[];
+  variants: VariantChoice[];
+}) {
+  const router = useRouter();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const pendingImagesRef = useRef<PendingImage[]>([]);
+  const [images, setImages] = useState(initialImages);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [message, setMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [saveState, saveAction] = useActionState(saveProductImagesAction.bind(null, productId), initialState);
+
+  useEffect(() => () => pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl)), []);
+
+  function replacePendingImages(next: PendingImage[]) {
+    pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    pendingImagesRef.current = next;
+    setPendingImages(next);
+  }
+
+  async function selectFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    if (selected.length > MAX_IMAGE_BATCH) {
+      setMessage(`每次最多选择 ${MAX_IMAGE_BATCH} 张图片。`);
+      return;
+    }
+    const next: PendingImage[] = [];
+    for (const [index, file] of selected.entries()) {
+      const validation = validateClientImageFile(file);
+      if (!validation.success) {
+        next.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        setMessage(validation.message);
+        return;
+      }
+      const dimensions = await imageDimensions(file);
+      next.push({
+        file,
+        previewUrl: URL.createObjectURL(file),
+        altText: `${productTitle || "商品"} 图片 ${images.length + index + 1}`,
+        variantId: "",
+        ...dimensions,
+      });
+    }
+    replacePendingImages(next);
+    setMessage("");
+  }
+
+  function updatePending(index: number, values: Partial<PendingImage>) {
+    setPendingImages((current) => current.map((image, imageIndex) => imageIndex === index ? { ...image, ...values } : image));
+  }
+
+  async function uploadSelectedImages() {
+    if (!pendingImages.length || pendingImages.some((image) => !image.altText.trim())) {
+      setMessage("请选择图片并为每张图片填写替代文字。");
+      return;
+    }
+    setIsUploading(true);
+    setMessage("");
+    const supabase = createSupabaseBrowserClient();
+    const uploadedPaths: string[] = [];
+    const registrations = [];
+
+    for (const image of pendingImages) {
+      const validation = validateClientImageFile(image.file);
+      if (!validation.success) {
+        if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
+        setMessage(validation.message);
+        setIsUploading(false);
+        return;
+      }
+      const id = crypto.randomUUID();
+      const path = `products/${productId}/${id}.${validation.values.extension}`;
+      const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, image.file, {
+        cacheControl: "3600",
+        contentType: image.file.type,
+        upsert: false,
+      });
+      if (error) {
+        if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
+        setMessage("上传失败；本批已上传文件已撤销。请确认管理员会话、类型和 10 MiB 限制后重试。");
+        setIsUploading(false);
+        return;
+      }
+      uploadedPaths.push(path);
+      registrations.push({
+        id,
+        storagePath: path,
+        altText: image.altText.trim(),
+        variantId: image.variantId || null,
+        width: image.width,
+        height: image.height,
+      });
+    }
+
+    const result = await registerUploadedImagesAction(productId, JSON.stringify(registrations));
+    if (result.status === "error") {
+      if (uploadedPaths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
+      setMessage(result.message);
+      setIsUploading(false);
+      return;
+    }
+
+    replacePendingImages([]);
+    if (fileInput.current) fileInput.current.value = "";
+    setMessage(result.message);
+    setIsUploading(false);
+    router.refresh();
+  }
+
+  function moveImage(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= images.length) return;
+    setImages((current) => {
+      const copy = [...current];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return copy;
+    });
+  }
+
+  function setCover(index: number) {
+    setImages((current) => [current[index], ...current.filter((_, imageIndex) => imageIndex !== index)]);
+  }
+
+  function updateImage(index: number, values: Partial<AdminProductImage>) {
+    setImages((current) => current.map((image, imageIndex) => imageIndex === index ? { ...image, ...values } : image));
+  }
+
+  async function deleteImage(image: AdminProductImage) {
+    if (!window.confirm(`确认永久删除“${image.altText}”？此操作会同时删除 Storage 文件和数据库记录。`)) return;
+    setIsDeleting(true);
+    const result = await deleteProductImageAction(productId, image.id);
+    setMessage(result.message);
+    if (result.status === "success") {
+      setImages((current) => current.filter((item) => item.id !== image.id));
+      router.refresh();
+    }
+    setIsDeleting(false);
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="image-upload-heading">
+        <h3 className="text-lg font-semibold" id="image-upload-heading">批量上传与预览</h3>
+        <p className="mt-1 text-sm text-slate-600">每批最多 20 张；只接受扩展名与 MIME 一致的 JPEG、PNG、WebP，单张不超过 10 MiB。文件直接上传到受 RLS 保护的 Storage。</p>
+        <label className="mt-4 block text-sm font-medium">
+          选择商品图片
+          <input accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" className={`${inputClass} mt-1 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-2 file:font-semibold file:text-sky-900`} multiple onChange={(event) => void selectFiles(event.target.files)} ref={fileInput} type="file" />
+        </label>
+        {pendingImages.length ? (
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {pendingImages.map((image, index) => (
+              <article className="rounded-xl border border-slate-200 p-4" key={`${image.file.name}-${image.file.lastModified}`}>
+                <img alt="待上传预览" className="aspect-[4/5] w-full rounded-xl bg-slate-100 object-cover" src={image.previewUrl} />
+                <p className="mt-2 truncate text-xs text-slate-500">{image.file.name} · {(image.file.size / 1024 / 1024).toFixed(2)} MiB</p>
+                <label className="mt-3 block text-sm font-medium">替代文字
+                  <input className={`${inputClass} mt-1`} maxLength={300} onChange={(event) => updatePending(index, { altText: event.target.value })} value={image.altText} />
+                </label>
+                <label className="mt-3 block text-sm font-medium">关联规格（可选）
+                  <select className={`${inputClass} mt-1`} onChange={(event) => updatePending(index, { variantId: event.target.value })} value={image.variantId}>
+                    <option value="">商品通用图</option>
+                    {variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.label}</option>)}
+                  </select>
+                </label>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <p aria-live="polite" className={message.includes("失败") || message.includes("无法") || message.includes("必须") ? "text-sm text-rose-700" : "text-sm text-emerald-700"} role="status">{message}</p>
+          <button className="min-h-11 rounded-xl bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400" disabled={isUploading || !pendingImages.length} onClick={() => void uploadSelectedImages()} type="button">{isUploading ? "上传并登记中…" : "上传所选图片"}</button>
+        </div>
+      </section>
+
+      <form action={saveAction} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <input name="images" type="hidden" value={JSON.stringify(images.map((image) => ({ id: image.id, altText: image.altText, variantId: image.variantId })))} />
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><h3 className="text-lg font-semibold">已登记图片</h3><p className="mt-1 text-sm text-slate-600">第一张始终是封面。调整后需保存；删除会立即执行并进行一致性补偿。</p></div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{images.length} / 100</span>
+        </div>
+        {images.length === 0 ? (
+          <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">尚未上传图片。可以先上传现有商品照片，之后逐步替换。</div>
+        ) : (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {images.map((image, index) => (
+              <article className="grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-[128px_1fr]" key={image.id}>
+                <div>
+                  <div className="relative">
+                    <img alt={image.altText} className="aspect-[4/5] w-full rounded-xl bg-slate-100 object-cover" src={image.signedUrl} />
+                    {index === 0 ? <span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-xs font-bold text-slate-900">封面</span> : null}
+                  </div>
+                  <p className="mt-2 text-center text-xs text-slate-500">位置 {index + 1}</p>
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium">替代文字
+                    <input className={`${inputClass} mt-1`} maxLength={300} onChange={(event) => updateImage(index, { altText: event.target.value })} value={image.altText} />
+                  </label>
+                  <label className="mt-3 block text-sm font-medium">关联规格（可选）
+                    <select className={`${inputClass} mt-1`} onChange={(event) => updateImage(index, { variantId: event.target.value || null })} value={image.variantId ?? ""}>
+                      <option value="">商品通用图</option>
+                      {variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.label}</option>)}
+                    </select>
+                  </label>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-semibold disabled:opacity-50" disabled={index === 0} onClick={() => moveImage(index, -1)} type="button">上移</button>
+                    <button className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-semibold disabled:opacity-50" disabled={index === images.length - 1} onClick={() => moveImage(index, 1)} type="button">下移</button>
+                    <button className="min-h-11 rounded-xl border border-amber-400 px-3 text-sm font-semibold disabled:opacity-50" disabled={index === 0} onClick={() => setCover(index)} type="button">设为封面</button>
+                    <button className="min-h-11 rounded-xl border border-rose-300 px-3 text-sm font-semibold text-rose-700 disabled:opacity-50" disabled={isDeleting} onClick={() => void deleteImage(image)} type="button">删除</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+          <p aria-live="polite" className={saveState.status === "error" ? "text-sm text-rose-700" : "text-sm text-emerald-700"} role={saveState.status === "error" ? "alert" : "status"}>{saveState.message}</p>
+          <SubmitButton pendingLabel="保存图片设置中…">保存图片设置</SubmitButton>
+        </div>
+      </form>
+    </div>
+  );
+}

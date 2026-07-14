@@ -1,0 +1,162 @@
+# Happy Beans 管理员账号与登录说明
+
+> 当前范围：Phase 9。本文说明首名管理员、登录退出、商品/分类/规格/图片/运营状态、订单请求处理与受控首页运营。
+
+## 1. 安全边界
+
+- 网站没有公众注册页面或注册 Server Action。
+- Supabase Auth 必须保持“禁止新用户自行注册”，但 Email/Password provider 必须对已有管理员可用。
+- 管理员身份只来自 `public.profiles` 中与 `auth.users.id` 对应的 `role = admin` 行，不使用 `user_metadata`。
+- 不把 secret/service role key 放进浏览器、普通脚本、截图、日志或 Git。
+- 后台页面保护和每个管理 Server Action 都会分别复核管理员身份；RLS 是最终数据边界。
+
+## 2. 建立首名管理员
+
+以下操作只能由 Supabase 项目所有者在受信任的 Dashboard 或数据库管理员连接中执行。
+
+1. 在 Supabase Authentication 的用户管理界面创建店主用户，使用店主实际邮箱和强密码。不要开放网站注册。
+2. 确认该邮箱已验证，并复制 Auth 用户 UUID。
+3. 在 Supabase SQL Editor 中把下方邮箱替换为真实店主邮箱，核对无误后执行一次：
+
+```sql
+do $$
+declare
+  target_user_id uuid;
+begin
+  select id
+  into target_user_id
+  from auth.users
+  where lower(email) = lower('owner@example.com');
+
+  if target_user_id is null then
+    raise exception 'Auth user not found';
+  end if;
+
+  if exists (select 1 from public.profiles) then
+    raise exception 'An administrator profile already exists';
+  end if;
+
+  insert into public.profiles (id, display_name, role)
+  values (target_user_id, '店主', 'admin');
+end
+$$;
+```
+
+4. 查询确认 UUID 与邮箱对应正确，但不要输出密码或 token：
+
+```sql
+select p.id, p.display_name, p.role, u.email
+from public.profiles as p
+join auth.users as u on u.id = p.id;
+```
+
+此流程故意只允许“首名管理员”。Phase 4 没有通过普通后台表单新增或提升管理员的能力；如未来需要多管理员，必须单独设计受控流程和审计。
+
+## 3. 登录与退出
+
+1. 访问 `/admin/login`。
+2. 输入已建立管理员 profile 的 Auth 邮箱和密码。
+3. 登录成功后进入 `/admin`。普通 Auth 用户即使密码正确也会被拒绝。
+4. 使用右上角“退出”。退出后重新访问或刷新 `/admin` 应回到登录页。
+
+## 4. 环境配置
+
+应用只需要以下浏览器可见标识符来完成认证与 RLS 调用：
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```
+
+这两个值不是授权绕过密钥；数据权限仍由当前用户 JWT、服务端管理员复核和 RLS 决定。Phase 4 应用不使用 `SUPABASE_SECRET_KEY`。
+
+## 5. 故障排查
+
+- “邮箱、密码或管理员权限不正确”：核对 Auth 用户能否邮箱密码登录，并确认 `profiles.id` 与 Auth UUID 完全一致。
+- 已登录却回到登录页：确认该用户有 `profiles.role = admin`，并检查 Supabase URL/key 是否属于同一个项目。
+- Email provider disabled：确认 Email/Password provider 对已有账号启用，同时保持全局公众 signup 关闭。
+- 退出后仍看到旧页面：强制刷新 `/admin`；若仍可读取后台数据，停止发布并检查 Cookie 刷新、Server Component 守卫和操作层 `requireAdmin()`。
+
+## 6. 基础商品管理
+
+1. 进入 `/admin/products`，可以按标题或网址标识搜索，并按草稿、已发布、已归档筛选。
+2. 选择“新建商品”，填写中文标题、网址标识、描述和可选 SEO 字段；新商品始终先创建为草稿。
+3. 商品详情页可以保存内容、复制、发布、下架或归档。归档不会删除历史数据。
+4. 复制只复制基础内容并创建新草稿，不复制规格、库存或图片。
+5. 发布前应确认基础内容、规格、价格、库存、图片和运营状态均正确。
+
+## 7. 分类管理
+
+1. 进入 `/admin/categories` 创建中文分类。
+2. “排序值”越小，分类越靠前；使用非负整数。
+3. 关闭“在公开分类中显示”会隐藏分类，但不会删除分类资料。
+4. 商品与分类是多对多关系。进入 `/admin/products/[商品 ID]` 的“商品分类”区域，可同时勾选多个分类并保存；例如水杯可以同时属于“餐具”和“家居装饰”。
+5. 每个商品最多选择 20 个分类；重复、无效或不存在的分类 ID 会被服务器和数据库拒绝。隐藏分类不会出现在公开分类入口，但管理员仍可维护已有归属。
+
+## 8. 规格、价格和库存
+
+1. 进入 `/admin/products/[商品 ID]`，在基础内容下方找到“规格、价格和库存”。
+2. 有顾客可选规格时，添加规格名称（例如“款式”“颜色”“尺寸”）及各自的中文规格值；无规格商品保持规格列表为空。
+3. 每次新增、删除或调整规格和值后，点击“生成/同步组合”。系统会生成完整笛卡尔组合，并保留仍然匹配的既有 SKU、价格和库存。
+4. 每个组合填写唯一 SKU、正数 CAD 价格、可选原价和非负整数库存。原价必须高于当前价格。
+5. 不销售的组合不要删除出矩阵，关闭“启用销售”即可保留记录并阻止公开销售。
+6. 批量修改可以将 CAD 价格、原价或库存应用到当前全部组合；批量应用后仍需点击“保存规格、价格和库存”。原价输入留空再应用可清除全部原价。
+7. 保存错误会定位到具体组合字段；重复规格名、重复规格值、重复组合、大小写不同但实质相同的 SKU、负库存和无效价格均不能保存。
+
+## 9. 商品图片
+
+1. 进入 `/admin/products/[商品 ID]`，在“商品图片”区域一次选择 1–20 张 JPEG、PNG 或 WebP；单张必须大于 0 且不超过 10 MiB。
+2. 上传前逐张检查预览并填写准确的中文替代文字；需要时关联到同商品的具体规格组合。
+3. 点击“上传所选图片”。上传完成且服务器复核通过后，图片才会登记到数据库；失败的本批文件会自动撤销。
+4. 已登记图片可上移、下移或设为封面；列表第 1 张即封面。修改顺序、替代文字或规格关联后点击“保存图片设置”。
+5. 删除会同时移除数据库元数据和 private Storage 对象。遇到错误时不要重复上传同一文件，先刷新确认当前状态。
+
+## 10. 新品、推荐和特价时间
+
+1. 在“商品运营状态”中设置新品发布时间和推荐状态；新品时间为空表示不按该字段展示为新品。
+2. 特价时间属于具体规格组合。在“规格、价格和库存”中先填写高于当前价格的原价，再设置特价开始和结束时间。
+3. 特价结束时间必须晚于开始时间；没有原价时不能保存特价时间。
+4. 时间使用当前浏览器本地时间输入，保存时转换为带时区的时间戳。
+8. 如果组合未来已被图片或订单记录引用，删除会被安全阻止；此时保留组合并禁用，不要尝试绕过数据库约束。
+
+## 11. 订单请求处理
+
+1. 进入 `/admin/orders`，可按请求编号、顾客姓名或邮箱搜索，并按状态筛选。
+2. 所有记录都是“订单请求”，不是已付款订单。打开详情后先核对提交时的商品、规格、SKU、CAD 单价、数量和小计快照。
+3. 根据顾客偏好联系方式确认库存、自取/配送安排、税费和最终金额；不要把后台商品小计误当作最终应收金额。
+4. 状态按 `新请求 → 已联系 → 已确认 → 准备中 → 已完成` 推进。完成前可以取消；系统会拒绝跳过必要步骤。
+5. 管理员备注只在后台可见，最多 2000 个字符。状态和备注通过受控 RPC 保存并写入审计日志，不能直接修改顾客字段或历史商品快照。
+
+## 12. 邮件状态与重试
+
+- 每个请求有“店主通知邮件”和“顾客确认邮件”两条独立状态。
+- `发送失败` 不代表订单请求丢失；请求仍可在后台查看和处理。
+- 先检查 `RESEND_API_KEY`、`ORDER_EMAIL_FROM`、`ORDER_NOTIFICATION_EMAIL` 和 `NEXT_PUBLIC_SITE_URL`，确认发件域名已在 Resend 验证，再点击“重试发送”。
+- 已发送邮件不显示重试按钮。系统使用固定 idempotency key 降低重复发送风险，但仍应先检查现有状态再重试。
+- 两封邮件都明确写明“未付款、未最终确认”；不要把邮件模板改成付款成功或订单已确认文案。
+
+## 13. Phase 8 环境配置
+
+```text
+NEXT_PUBLIC_SITE_URL=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
+RESEND_API_KEY=
+ORDER_EMAIL_FROM=Happy Beans <orders@已验证域名>
+ORDER_NOTIFICATION_EMAIL=
+ORDER_RATE_LIMIT_SECRET=
+```
+
+`SUPABASE_SECRET_KEY`、`RESEND_API_KEY` 和 `ORDER_RATE_LIMIT_SECRET` 只能存在于服务器环境。`ORDER_RATE_LIMIT_SECRET` 应使用独立随机值，不能复用其他 API key。Preview 应使用测试收件箱，Production 才使用真实店主邮箱。
+
+## 14. 首页内容与运营
+
+1. 进入 `/admin/homepage`。页面固定提供公告条、Hero、热门分类、新品、推荐、特价、品牌故事、履约说明、FAQ 和联系 CTA；不能新增自定义模块。
+2. 每个模块可启用/隐藏并设置唯一排序值。数值越小越靠前；公告条始终显示在 Header 上方，不参与正文占位。
+3. Hero 和品牌故事只能选择商品后台已经登记的图片；没有可选图片或图片后来不可公开时，前台使用品牌默认图片。
+4. 热门分类最多选择 6 个。商品模块可选择自动规则或手动选品，最多选择 8 个并设置 1–8 个显示数量；草稿、归档、下架或失效实体会由公开查询安全跳过。
+5. FAQ 最多填写 5 组问题和答案。履约说明分别维护自取与本地配送文案，并由上方履约开关决定公开显示哪些面板。
+6. 联系 CTA 可维护公开邮箱、电话和按钮文案；CTA 目标只能从受控站内目标中选择。存在公开邮箱时，联系按钮使用系统生成的 `mailto:` 链接。
+7. 页面右侧“受控实时预览”只显示当前有效输入的模块顺序和纯文本摘要；保存后点击“查看公开首页”完成真实页面检查。
+8. 后台不接受 HTML、JavaScript、任意 URL、CSS、外部图片地址或整页代码。保存会在浏览器、Server Action 和数据库 RPC 三层重新校验，并写入管理员审计日志。
