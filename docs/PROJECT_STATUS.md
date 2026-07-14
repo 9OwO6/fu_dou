@@ -8,6 +8,8 @@
 - 当前目录已初始化为 Git 仓库，当前分支为 `main`，远端 `origin` 为 `https://github.com/9OwO6/fu_dou.git`；首个实现 commit 已推送，Vercel 店主试用部署已连接该仓库。
 - 根目录已有实体 `AGENTS.md`，后续任务必须完整读取并遵循。
 - Phase 1–5B 与 Phase 6 已完成；Phase 5C 实现与自动化检查已完成，仍等待 OS 文件选择上传和页面删除按钮两项人工验收后关闭 Phase。
+- 商品管理补充受控永久删除：后台列表/详情提供“删除”，仅草稿或归档且未被订单请求引用的商品可删除；已发布商品须先下架。删除级联清理商品数据、首页引用和 private 图片对象，并保留审计记录。
+  - 新增正式 migration `20260714071921_controlled_product_delete.sql` 和 `010_controlled_product_delete.test.sql`；本地 migration 重建成功，数据库总计 188/188 个 pgTAP 断言通过。
 - 主 Logo 已保存到 `assets/brand/happy-beans-logo-primary.jpg`；原图为 1080×1080 白底 JPEG，品牌名称按图确认成 `Happy Beans / 福豆`。
 - 早期调研文档 `福豆网站开发.md` 仅作背景资料；范围冲突时以完整开发计划为准。
 

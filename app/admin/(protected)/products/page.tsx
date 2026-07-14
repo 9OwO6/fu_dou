@@ -17,6 +17,11 @@ const notices: Record<string, string> = {
   status_published: "商品已发布。",
   status_archived: "商品已归档，历史数据仍然保留。",
   action_failed: "操作未完成，请重试。",
+  deleted: "商品及其关联数据已永久删除。",
+  deleted_storage_warning: "商品数据库记录已删除，但部分图片文件清理失败。请停止重复操作并联系技术人员检查 Storage。",
+  delete_requires_unpublish: "已发布商品不能直接删除，请先下架再删除。",
+  delete_order_referenced: "该商品已被订单请求引用，不能永久删除；请改用归档。",
+  delete_failed: "商品删除失败，请刷新后重试。",
 };
 
 function value(input: string | string[] | undefined) {
@@ -31,7 +36,9 @@ export default async function AdminProductsPage({
   const params = await searchParams;
   const query = value(params.q);
   const status = value(params.status);
-  const notice = notices[value(params.notice)];
+  const noticeKey = value(params.notice);
+  const notice = notices[noticeKey];
+  const isErrorNotice = ["action_failed", "delete_failed", "delete_requires_unpublish", "delete_order_referenced", "deleted_storage_warning"].includes(noticeKey);
   const products = await listAdminProducts({ query, status });
 
   return (
@@ -47,7 +54,7 @@ export default async function AdminProductsPage({
         </Link>
       </div>
 
-      {notice ? <p className={value(params.notice) === "action_failed" ? "rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800" : "rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"} role={value(params.notice) === "action_failed" ? "alert" : "status"}>{notice}</p> : null}
+      {notice ? <p className={isErrorNotice ? "rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800" : "rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"} role={isErrorNotice ? "alert" : "status"}>{notice}</p> : null}
 
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_180px_auto]" method="get">
         <label className="font-medium" htmlFor="product-search">

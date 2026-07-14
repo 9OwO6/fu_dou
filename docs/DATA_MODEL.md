@@ -82,7 +82,7 @@ Phase 4 已通过独立 migration 新增 `admin_audit_logs`：保存 actor、受
 - item 的 `variant_id` 必须属于其 `product_id`。
 - 事务提交前，订单必须至少有一个 item，`subtotal_snapshot` 必须等于所有 item 快照合计。
 - `final_total` 若存在，必须等于小计加可选配送费和税费。
-- 商品采用归档而不是删除；订单 item 对商品和 variant 使用限制删除，避免历史引用失效。
+- 商品默认采用归档保留历史；管理员也可受控永久删除尚未产生订单引用的草稿或归档商品。已发布商品必须先下架，订单 item 对商品和 variant 的限制删除继续保证历史引用不失效。
 
 Phase 8 仍需实现受控服务端事务和权威重查；本模型不把浏览器金额当作可信输入。
 
@@ -235,7 +235,11 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 
 `006_phase_5c_product_media_operations.test.sql` 新增 21 个断言，覆盖管理员边界、批量图片登记、排序/封面、规格关联、跨商品拒绝、删除/恢复、推荐/新品状态、特价时间与无原价拒绝。当前数据库总计 120/120 个 pgTAP 断言通过。
 
-## 15. Phase 9 首页受控配置
+## 15. 受控商品永久删除
+
+`admin_delete_product` 是商品永久删除的唯一数据库入口。它使用 `security invoker` 和现有管理员 RLS，只允许删除草稿或已归档商品；已发布商品以及被 `order_request_items` 引用的商品会被明确拒绝。事务会级联清理商品翻译、规格、库存、分类/集合关联和图片元数据，同时移除首页手动选品及相关图片引用，写入不可变审计记录，并返回 Storage 路径供 Server Action 通过 Storage API 永久清理对象。
+
+## 16. Phase 9 首页受控配置
 
 - 正式 migration：`20260714030708_phase_9_homepage_operations.sql`。
 - 模块类型固定为公告条、Hero、热门分类、新品、推荐、特价、品牌故事、履约说明、FAQ 和联系 CTA；`section_type` 仍是数据库 enum，不能创建任意新模块。

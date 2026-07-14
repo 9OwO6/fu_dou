@@ -1,7 +1,7 @@
 import { SubmitButton } from "@/components/admin/submit-button";
 import type { AdminProductSummary } from "@/lib/catalog/admin-data";
 
-import { duplicateProductAction, setProductStatusAction } from "@/app/admin/(protected)/products/actions";
+import { deleteProductAction, duplicateProductAction, setProductStatusAction } from "@/app/admin/(protected)/products/actions";
 
 export function ProductActions({ product, compact = false }: { product: AdminProductSummary; compact?: boolean }) {
   return (
@@ -36,6 +36,19 @@ export function ProductActions({ product, compact = false }: { product: AdminPro
           <SubmitButton pendingLabel="恢复中…" variant="secondary">恢复为草稿</SubmitButton>
         </form>
       )}
+      <div title={product.status === "published" ? "已发布商品请先下架再删除" : undefined}>
+        <form action={deleteProductAction}>
+          <input name="productId" type="hidden" value={product.id} />
+          <SubmitButton
+            confirmMessage={`永久删除“${product.title}”？商品内容、规格、库存和图片都会删除，且无法恢复。`}
+            disabled={product.status === "published"}
+            pendingLabel="删除中…"
+            variant="danger"
+          >
+            删除
+          </SubmitButton>
+        </form>
+      </div>
     </div>
   );
 }

@@ -112,6 +112,7 @@
 - `admin_create_product` / `admin_update_product` 和分类对应函数在单一事务内保存基础记录、`zh` translation 与审计记录，避免多请求造成半成品。
 - `admin_duplicate_product` 只复制基础商品与 translation，重置为草稿，并明确不复制 Phase 5B/5C 的规格、库存或图片。
 - `admin_set_product_status` 是发布、下架和归档的唯一 Phase 5A 数据入口；首次发布写入 `published_at`，下架依靠 `status = draft` 立即退出公开 RLS 查询。
+- `admin_delete_product` 提供后续补充的受控永久删除：仅管理员可删除草稿或归档且未被订单引用的商品。数据库事务先清理所有级联数据、首页引用并写审计，再把图片路径返回给 Server Action 通过 Storage API 删除 private 对象；已发布商品必须先下架。若 Storage 清理失败，商品不会重新出现，后台会给出明确警告并可依据审计记录清理不可公开访问的残留对象。
 - 后台表单以原生 HTML 约束提供客户端即时校验，同时使用同一服务端 parser 做权威长度、slug 和排序检查；数据库约束与 RLS 仍是最终边界。
 - 路由段提供 loading/error/not-found/empty 状态；宽表只在自身容器滚动，后台 `main` 设置 `min-width: 0` 防止小屏页面整体溢出。
 

@@ -10,6 +10,7 @@ import {
   parseProductForm,
   type ProductField,
 } from "@/lib/catalog/admin-validation";
+import { PRODUCT_IMAGE_BUCKET } from "@/lib/catalog/media-validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ProductActionState = {
@@ -135,4 +136,41 @@ export async function setProductStatusAction(formData: FormData) {
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productId}`);
   redirect(`/admin/products?notice=status_${status}`);
+}
+
+export async function deleteProductAction(formData: FormData) {
+  await requireAdmin();
+  const productId = formData.get("productId");
+  if (typeof productId !== "string" || !isUuid(productId)) {
+    redirect("/admin/products?notice=delete_failed");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("admin_delete_product", {
+    p_product_id: productId,
+  });
+
+  if (error) {
+    const notice = error.code === "55000"
+      ? "delete_requires_unpublish"
+      : error.code === "23503"
+        ? "delete_order_referenced"
+        : "delete_failed";
+    redirect(`/admin/products?notice=${notice}`);
+  }
+
+  const paths = Array.isArray(data)
+    ? data.filter((path): path is string => typeof path === "string")
+    : [];
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(paths);
+    if (storageError) {
+      revalidatePath("/admin/products");
+      redirect("/admin/products?notice=deleted_storage_warning");
+    }
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/admin/homepage");
+  redirect("/admin/products?notice=deleted");
 }
