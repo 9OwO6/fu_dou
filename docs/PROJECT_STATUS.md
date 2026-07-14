@@ -679,3 +679,23 @@
 - 当前可用范围：店主可登录后台维护分类、商品、规格、SKU、CAD 价格、库存、图片、上下架/新品/推荐/特价和首页配置。
 - 尚未配置：`SUPABASE_SECRET_KEY`、`ORDER_RATE_LIMIT_SECRET` 与 Resend 邮件变量，因此订单请求提交和双邮件通知不属于本次可验收范围；不得把当前试用部署描述为完整上线。
 - 回滚路径：Vercel 可回退到此前成功 deployment；数据库变更均来自正式 migration，但涉及真实录入数据时不得通过 reset 回滚。
+
+## 店主试用修正：新建商品首批图片
+
+- 修正日期：2026-07-13（America/Vancouver）。
+- 反馈：线上 `/admin/products/new` 原本只允许创建基础草稿，必须进入详情页后才能上传图片，店主在首次录入时会认为新建商品不支持图片。
+- 完成内容：
+  - 新建商品页新增首批图片选择、浏览器预览、中文替代文字、移除图片、文件类型/大小说明和动态提交状态。
+  - 提交后先通过既有管理员 Server Action 创建草稿并取得商品 UUID，再沿用 Phase 5C 的管理员 RLS、受控 Storage 路径、客户端文件校验、服务端对象复核和原子登记流程上传图片。
+  - 新建阶段的图片先作为商品通用图；进入详情页后仍可调整顺序、封面、替代文字和规格关联。
+  - 图片失败不会回滚或发布已经创建的草稿；页面会进入商品详情并明确提示从“商品图片”区域重新上传。已上传半成品继续使用既有补偿清理。
+  - 既有详情页上传与新建页上传共用 `lib/catalog/client-image-upload.ts`，避免两套 Storage 行为漂移。
+- 路由：无新增 URL；只增强 `/admin/products/new`，并扩充 `/admin/products/[id]` 的创建结果提示。
+- 数据库、API、Storage、环境变量和依赖：无 schema/migration、Route Handler、bucket/policy、环境变量或 package 变化；复用既有 `product-images` private bucket、RLS、Server Action 和 Phase 5C RPC。
+- 自动检查：`typecheck`、`lint`、9 个单元测试文件（34/34）和 production build 全部通过；`git diff --check` 通过。
+- 线上浏览器验证：
+  - 店主已登录状态刷新 `/admin/products/new` 后，页面显示“商品图片”、文件选择控件、20 张/10 MiB 限制、预览说明和动态创建按钮；console 无 warning/error，无 Next.js 错误覆盖层。
+  - 手机有效宽度 375 下 `scrollWidth === clientWidth === 375`，图片区域与选择控件可见，无页面级横向溢出。
+  - 当前浏览器控制接口不能向原生文件输入注入本地路径，截图接口也在长后台页超时；因此真实 OS 选图、预览、上传、详情页登记和删除仍由店主完成一次人工验收，未伪称已自动验证。
+- Git 与部署：实现 commit `c96f7f5` 已推送到 `origin/main` 并由 Vercel 自动部署；新建商品页已确认加载该版本文案和控件。
+- 当前 Phase 状态：Phase 5C 的实现仍完整，但严格关闭条件不变；等待店主完成一次真实新建页选图上传和一次详情页删除确认后，才能把 Phase 5C 标记为真正完成。
