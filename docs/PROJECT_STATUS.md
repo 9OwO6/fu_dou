@@ -771,3 +771,27 @@
 - 数据库、API、Storage、环境变量和路由：无变化。
 - 自动检查：`typecheck`、`lint`、Vitest 9 个文件 36/36 与 production build 全部通过；代码搜索确认旧 `empty-bean` 和硬编码空状态“豆”已清除。
 - 真实浏览器验证：英文 `/en/collections/new` 桌面空列表、中文 `/zh/collections/featured` 390×844 手机空列表和英文不存在商品 404 均显示同一双豆头像；页面无框架错误覆盖层或应用 console error。
+
+## 后台目录管理视觉与折叠布局优化
+
+- 调整日期：2026-07-15（America/Vancouver）。
+- 对应范围：在现有 Phase 5A/5B/5C 与 Phase 12 后台能力上进行界面收口，不改变商品、分类、规格、图片或运营状态的数据模型与业务规则。
+- 完成内容：
+  - 后台 Shell 改为温暖白色画布、品牌页头、图标化侧栏、浅黄色选中态和统一按钮/表单层级，并继续使用权威 `assets/brand/happy-beans-logo-primary.jpg`。
+  - 分类新建与编辑表单按业务逻辑调整为三组双列：中英文名称、中英文描述、网址标识与排序值；公开开关独占一行。现有分类以紧凑摘要行呈现，点击后展开编辑。
+  - 商品详情将“基础内容”“SEO”“商品分类”“商品图片”“规格、价格和库存”“运营状态”统一改为带箭头的原生折叠面板，默认全部收起；仅在基础/SEO 表单区展开时显示对应保存操作，减少无效页面长度。
+  - 修复 390px 手机宽度下横向导航最小内容宽度导致的页面级溢出。
+- 修改文件：`app/admin/(protected)/layout.tsx`、`app/admin/(protected)/categories/page.tsx`、`app/admin/(protected)/products/page.tsx`、`app/admin/(protected)/products/[id]/page.tsx`、`components/admin/admin-disclosure.tsx`、`components/admin/admin-icons.tsx`、`components/admin/admin-navigation.tsx`、`components/admin/category-manager.tsx`、`components/admin/product-form.tsx`、`components/admin/product-category-selector.tsx`、`components/admin/submit-button.tsx`、`app/globals.css`、`docs/DESIGN_SYSTEM.md`、`docs/ADMIN_GUIDE.md`。
+- 路由与功能：无新增 URL；增强 `/admin/categories`、`/admin/products` 与 `/admin/products/[id]` 的布局、视觉和折叠交互。
+- 数据库、API、Storage、环境变量与依赖：无变化；没有 migration、Route Handler、bucket/policy、环境变量或 package 变更。
+- 自动检查：`npm.cmd run typecheck`、`npm.cmd run lint`、Vitest 9 个文件 36/36、Next.js 16.2.10 production build 与 `git diff --check` 全部通过。
+- 真实线上浏览器验证：
+  - `/admin/categories` 在 1440×900 与 1024×768 验证字段顺序、说明卡、紧凑分类摘要和展开编辑；1024 有效内容宽度 `1009`，`scrollWidth === clientWidth`。
+  - `/admin/products/[id]` 在 1440×900 与 1024×768 验证 6 个面板默认关闭；打开“基础内容”后网址标识等字段和保存操作可见，全部关闭时保存操作隐藏。
+  - 390×844 验证分类页与商品详情页，页面 `scrollWidth === clientWidth === 390`，无页面级横向溢出；商品 6 个面板默认关闭。
+  - 线上页面开发日志为空，无应用 console error 或框架错误覆盖层。
+- 人工验收步骤：登录后台后进入“分类管理”，确认描述与网址标识/排序值的行序并展开现有分类；进入任一商品，逐一展开基础内容、SEO、分类、图片、规格库存和运营状态，确认内容与保存行为保持不变；再以手机宽度检查横向导航与折叠面板。
+- 未完成项、风险与有意延后：本次没有改动数据或业务流程；现有各 Phase 的云端数据、邮件及店主真实录入验收状态保持不变。视觉继续以本次已认可后台概念为基准，未扩展为自由页面编辑器。
+- 当前 Phase 是否真正完成：本次独立后台 UI 优化已完成并在线验证；它不改变既有 Phase 完成状态。
+- 下一 Phase 是否具备启动条件：不受本次 UI 调整阻塞，仍按 `HAPPY_BEANS完整开发计划.md` 与上方 Phase 状态执行。
+- Git 与外部操作：实现提交已推送至 `origin/main`，Vercel 自动部署后的线上版本已完成上述浏览器复验；无需用户新增账号、环境变量或手动部署。
