@@ -17,8 +17,8 @@ export function AdminNavigation() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="后台导航">
-      <ul className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
+    <nav className="min-w-0 max-w-full" aria-label="后台导航">
+      <ul className="flex w-full max-w-full gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
         {links.map((link) => {
           const active = link.exact ? pathname === link.href : pathname.startsWith(link.href);
           const Icon = link.icon;

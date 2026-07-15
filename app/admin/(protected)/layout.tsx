@@ -51,8 +51,8 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1440px] lg:min-h-[calc(100vh-65px)] lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="border-b border-[#e5e0d7] bg-white px-4 py-4 lg:border-b-0 lg:border-r lg:px-5 lg:py-8">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1440px] lg:min-h-[calc(100vh-65px)] lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="min-w-0 max-w-full overflow-hidden border-b border-[#e5e0d7] bg-white px-4 py-4 lg:border-b-0 lg:border-r lg:px-5 lg:py-8">
           <AdminNavigation />
         </aside>
         <main className="min-w-0 px-5 py-7 sm:px-8 lg:px-10 lg:py-9 xl:px-12">{children}</main>
