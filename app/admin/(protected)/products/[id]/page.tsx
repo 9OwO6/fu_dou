@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ImageManager } from "@/components/admin/image-manager";
+import { AdminDisclosure } from "@/components/admin/admin-disclosure";
 import { ProductActions } from "@/components/admin/product-actions";
 import { ProductForm } from "@/components/admin/product-form";
 import { ProductOperationsEditor } from "@/components/admin/product-operations-editor";
@@ -35,9 +36,9 @@ export default async function EditProductPage({ params, searchParams }: { params
     <section className="space-y-6" aria-labelledby="edit-product-heading">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link className="text-sm font-semibold text-sky-800 hover:underline" href="/admin/products">← 返回商品列表</Link>
-          <div className="mt-4 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-semibold tracking-tight" id="edit-product-heading">{product.title || "未命名商品"}</h1><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{statusLabels[product.status]}</span></div>
-          <p className="mt-2 font-mono text-sm text-slate-500">/{product.slug}</p>
+          <Link className="text-sm font-semibold text-[#24697a] hover:underline" href="/admin/products">← 返回商品列表</Link>
+          <div className="mt-4 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold tracking-tight sm:text-4xl" id="edit-product-heading">{product.title || "未命名商品"}</h1><span className="rounded-full bg-[#fff7c2] px-3 py-1 text-xs font-semibold text-[#8a5c00]">{statusLabels[product.status]}</span></div>
+          <p className="mt-2 font-mono text-sm text-[#62676d]">/{product.slug}</p>
         </div>
         <ProductActions product={product} />
       </div>
@@ -57,30 +58,15 @@ export default async function EditProductPage({ params, searchParams }: { params
       ) : null}
       <ProductForm product={product} />
       <ProductCategorySelector productId={product.id} selection={categorySelection} />
-      <div className="border-t border-slate-200 pt-6">
-        <div className="mb-5">
-          <p className="text-sm font-semibold text-sky-800">Phase 5C</p>
-          <h2 className="mt-1 text-2xl font-semibold">商品图片</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">批量上传后可调整顺序、封面、替代文字和规格关联。Storage 与数据库写入使用补偿清理，失败时不会静默留下半完成记录。</p>
-        </div>
+      <AdminDisclosure description="批量上传后可调整顺序、封面、替代文字和规格关联。" title="商品图片">
         <ImageManager initialImages={productImages} key={productImages.map((image) => `${image.id}:${image.sortOrder}`).join("|")} productId={product.id} productTitle={product.title} variants={variantChoices} />
-      </div>
-      <div className="border-t border-slate-200 pt-6">
-        <div className="mb-5">
-          <p className="text-sm font-semibold text-sky-800">Phase 5B</p>
-          <h2 className="mt-1 text-2xl font-semibold">规格、价格和库存</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">先维护规格和值，再生成完整组合。每个组合都需要唯一 SKU、有效 CAD 价格和非负库存；不销售的组合请禁用。</p>
-        </div>
+      </AdminDisclosure>
+      <AdminDisclosure description="维护规格和值并生成完整组合；每个组合独立管理 SKU、价格和库存。" title="规格、价格和库存">
         <VariantEditor initialConfiguration={variantConfiguration} productId={product.id} />
-      </div>
-      <div className="border-t border-slate-200 pt-6">
-        <div className="mb-5">
-          <p className="text-sm font-semibold text-sky-800">Phase 5C</p>
-          <h2 className="mt-1 text-2xl font-semibold">运营状态</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">维护新品发布时间和推荐开关；每个规格组合的原价与特价时间在上方规格区独立维护。</p>
-        </div>
+      </AdminDisclosure>
+      <AdminDisclosure description="维护新品发布时间和推荐开关；特价时间在规格区独立维护。" title="运营状态">
         <ProductOperationsEditor initialFeatured={product.isFeatured} initialPublishedAt={product.publishedAt} productId={product.id} productStatus={product.status} />
-      </div>
+      </AdminDisclosure>
     </section>
   );
 }

@@ -3,31 +3,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { FolderIcon, HomeIcon, OrderIcon, ProductIcon, StoreIcon } from "./admin-icons";
+
 const links = [
-  { href: "/admin", label: "后台概览", exact: true },
-  { href: "/admin/products", label: "商品管理", exact: false },
-  { href: "/admin/categories", label: "分类管理", exact: false },
-  { href: "/admin/orders", label: "订单请求", exact: false },
-  { href: "/admin/homepage", label: "首页运营", exact: false },
+  { href: "/admin", label: "后台概览", exact: true, icon: HomeIcon },
+  { href: "/admin/products", label: "商品管理", exact: false, icon: ProductIcon },
+  { href: "/admin/categories", label: "分类管理", exact: false, icon: FolderIcon },
+  { href: "/admin/orders", label: "订单请求", exact: false, icon: OrderIcon },
+  { href: "/admin/homepage", label: "首页运营", exact: false, icon: StoreIcon },
 ];
 
 export function AdminNavigation() {
   const pathname = usePathname();
 
   return (
-    <nav className="rounded-2xl border border-slate-200 bg-white p-3" aria-label="后台导航">
-      <ul className="space-y-1">
+    <nav aria-label="后台导航">
+      <ul className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
         {links.map((link) => {
           const active = link.exact ? pathname === link.href : pathname.startsWith(link.href);
+          const Icon = link.icon;
           return (
-            <li key={link.href}>
+            <li className="shrink-0 lg:shrink" key={link.href}>
               <Link
                 aria-current={active ? "page" : undefined}
-                className={`block rounded-xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${
-                  active ? "bg-sky-50 text-sky-900" : "text-slate-700 hover:bg-slate-100"
+                className={`relative flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16758a] ${
+                  active ? "bg-[#fff7c2] text-[#292c30] before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-[#e7bd00]" : "text-[#62676d] hover:bg-[#fffdf8] hover:text-[#292c30]"
                 }`}
                 href={link.href}
               >
+                <Icon className="size-5 shrink-0" />
                 {link.label}
               </Link>
             </li>

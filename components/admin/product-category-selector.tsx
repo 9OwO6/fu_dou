@@ -6,6 +6,7 @@ import { saveProductCategoriesAction } from "@/app/admin/(protected)/products/[i
 import type { AdminProductCategorySelection } from "@/lib/catalog/admin-data";
 
 import { SubmitButton } from "./submit-button";
+import { AdminDisclosure } from "./admin-disclosure";
 
 const initialState = { status: "idle", message: "" } as const;
 
@@ -22,18 +23,10 @@ export function ProductCategorySelector({
   );
 
   return (
-    <form action={formAction} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">商品分类</h2>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            同一商品可以同时属于多个分类，例如水杯可以出现在“餐具”“杯具水壶”和“礼物精选”。
-          </p>
-        </div>
-        <SubmitButton pendingLabel="保存中…">保存分类</SubmitButton>
-      </div>
+    <form action={formAction}>
+      <AdminDisclosure description="同一商品可以同时属于多个分类。" title="商品分类">
       {selection.categories.length > 0 ? (
-        <fieldset className="mt-5 grid gap-3 sm:grid-cols-2">
+        <fieldset className="grid gap-3 sm:grid-cols-2">
           <legend className="sr-only">选择商品所属分类</legend>
           {selection.categories.map((category) => (
             <label
@@ -68,6 +61,8 @@ export function ProductCategorySelector({
       >
         {state.message}
       </p>
+      <div className="mt-4 flex justify-end border-t border-[#e5e0d7] pt-4"><SubmitButton pendingLabel="保存中…">保存分类</SubmitButton></div>
+      </AdminDisclosure>
     </form>
   );
 }

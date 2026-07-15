@@ -20,6 +20,7 @@ import {
 import { MAX_IMAGE_BATCH, validateClientImageFile } from "@/lib/catalog/media-validation";
 
 import { SubmitButton } from "./submit-button";
+import { AdminDisclosure } from "./admin-disclosure";
 
 const initialState: ProductActionState = { status: "idle", message: "", fieldErrors: {} };
 
@@ -125,10 +126,12 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
 
   return (
     <form action={formAction} className="space-y-8" ref={formRef}>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-basic-heading">
-        <h2 className="text-lg font-semibold" id="product-basic-heading">基础内容</h2>
-        <p className="mt-1 text-sm text-slate-600">网址标识中英文共用；中文内容必填，英文可分阶段补齐。英文缺失的商品不会出现在英文站。</p>
-        <div className="mt-5 grid gap-5">
+      <AdminDisclosure
+        defaultOpen={!product || state.status === "error"}
+        description="网址标识中英文共用；中文内容必填，英文可分阶段补齐。"
+        title="基础内容"
+      >
+        <div className="grid gap-5">
           <label className="block font-medium" htmlFor="slug">
             网址标识 <span className="text-rose-600" aria-hidden="true">*</span>
             <input aria-describedby={state.fieldErrors.slug ? "slug-error" : "slug-help"} aria-invalid={Boolean(state.fieldErrors.slug)} autoCapitalize="none" className={inputClass} defaultValue={product?.slug} id="slug" maxLength={160} name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required />
@@ -169,12 +172,14 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
             </label>
           </div>
         </div>
-      </section>
+      </AdminDisclosure>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-seo-heading">
-        <h2 className="text-lg font-semibold" id="product-seo-heading">SEO</h2>
-        <p className="mt-1 text-sm text-slate-500">留空时，公开页面会使用商品标题与描述生成默认值。</p>
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <AdminDisclosure
+        defaultOpen={state.status === "error" && Boolean(state.fieldErrors.seoTitle || state.fieldErrors.seoDescription || state.fieldErrors.seoTitleEn || state.fieldErrors.seoDescriptionEn)}
+        description="留空时，公开页面会使用商品标题与描述生成默认值。"
+        title="SEO"
+      >
+        <div className="grid gap-5 lg:grid-cols-2">
           <label className="block font-medium" htmlFor="seoTitle">
             中文 SEO 标题
             <input aria-describedby={state.fieldErrors.seoTitle ? "seo-title-error" : undefined} aria-invalid={Boolean(state.fieldErrors.seoTitle)} className={inputClass} defaultValue={product?.seoTitle} id="seoTitle" maxLength={70} name="seoTitle" />
@@ -196,13 +201,12 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
             <FieldError id="seo-description-en-error" message={state.fieldErrors.seoDescriptionEn} />
           </label>
         </div>
-      </section>
+      </AdminDisclosure>
 
       {!product ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="initial-images-heading">
-          <h2 className="text-lg font-semibold" id="initial-images-heading">商品图片</h2>
-          <p className="mt-1 text-sm text-slate-600">可以在创建商品时一起选择图片。系统会先创建草稿，再将图片上传为商品通用图；创建后仍可调整封面、顺序和规格关联。</p>
-          <label className="mt-5 block font-medium" htmlFor="initialProductImages">
+        <AdminDisclosure defaultOpen description="创建草稿时可以同时选择首批商品图片。" title="商品图片">
+          <p className="text-sm leading-6 text-slate-600">系统会先创建草稿，再将图片上传为商品通用图；创建后仍可调整封面、顺序和规格关联。</p>
+          <label className="mt-4 block font-medium" htmlFor="initialProductImages">
             选择商品图片
             <input
               accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
@@ -260,7 +264,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
           >
             {imageMessage}
           </p>
-        </section>
+        </AdminDisclosure>
       ) : null}
 
       <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">

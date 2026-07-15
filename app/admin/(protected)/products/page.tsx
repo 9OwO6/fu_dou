@@ -45,18 +45,17 @@ export default async function AdminProductsPage({
     <section aria-labelledby="products-heading" className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-sky-700">Phase 5A</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight" id="products-heading">商品管理</h1>
-          <p className="mt-2 text-slate-600">管理商品中英文内容、SEO 和发布状态；英文缺失商品不会进入英文站。</p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" id="products-heading">商品管理</h1>
+          <p className="mt-3 leading-7 text-[#62676d]">管理商品中英文内容、SEO 和发布状态；英文缺失商品不会进入英文站。</p>
         </div>
-        <Link className="rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" href="/admin/products/new">
+        <Link className="min-h-11 rounded-xl border border-[#e2c200] bg-[#f7e653] px-5 py-3 font-semibold text-[#292c30] shadow-sm transition hover:bg-[#f3dc2f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16758a]" href="/admin/products/new">
           新建商品
         </Link>
       </div>
 
       {notice ? <p className={isErrorNotice ? "rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800" : "rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"} role={isErrorNotice ? "alert" : "status"}>{notice}</p> : null}
 
-      <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_180px_auto]" method="get">
+      <form className="grid gap-3 rounded-2xl border border-[#e5e0d7] bg-white p-5 sm:grid-cols-[1fr_180px_auto]" method="get">
         <label className="font-medium" htmlFor="product-search">
           搜索
           <input className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200" defaultValue={query} id="product-search" name="q" placeholder="搜索标题或网址标识" type="search" />
@@ -70,17 +69,17 @@ export default async function AdminProductsPage({
             <option value="archived">已归档</option>
           </select>
         </label>
-        <button className="self-end rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600" type="submit">筛选</button>
+        <button className="min-h-11 self-end rounded-xl border border-[#c9c3b8] bg-white px-4 py-2 font-semibold transition hover:bg-[#fffdf8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16758a]" type="submit">筛选</button>
       </form>
 
       {products.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <h2 className="text-lg font-semibold">没有符合条件的商品</h2>
           <p className="mt-2 text-slate-500">调整搜索或状态筛选，或者创建一个新商品草稿。</p>
-          <Link className="mt-5 inline-block rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white" href="/admin/products/new">新建商品</Link>
+          <Link className="mt-5 inline-block rounded-xl border border-[#e2c200] bg-[#f7e653] px-5 py-3 font-semibold text-[#292c30]" href="/admin/products/new">新建商品</Link>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-[#e5e0d7] bg-white">
           <table className="min-w-[800px] w-full border-collapse text-left">
             <caption className="sr-only">后台商品列表，共 {products.length} 项</caption>
             <thead className="border-b border-slate-200 bg-slate-50 text-sm text-slate-600">
