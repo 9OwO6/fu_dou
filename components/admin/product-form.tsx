@@ -125,7 +125,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
   }
 
   return (
-    <form action={formAction} className="space-y-8" ref={formRef}>
+    <form action={formAction} className="product-form space-y-6" ref={formRef}>
       <AdminDisclosure
         defaultOpen={!product || state.status === "error"}
         description="网址标识中英文共用；中文内容必填，英文可分阶段补齐。"
@@ -267,7 +267,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         </AdminDisclosure>
       ) : null}
 
-      <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+      <div className="product-form-actions sticky bottom-4 flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e5e0d7] bg-white/95 p-4 shadow-lg backdrop-blur">
         <p aria-live="polite" className={state.status === "error" ? "text-sm text-rose-700" : "text-sm text-emerald-700"} role={state.status === "error" ? "alert" : undefined}>
           {isCompleting && imageMessage ? imageMessage : state.message}
         </p>

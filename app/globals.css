@@ -268,6 +268,8 @@ button, summary { -webkit-tap-highlight-color: transparent; }
   .category-grid { grid-template-columns: repeat(2,1fr); }
   .catalog-filters { grid-template-columns: 1fr; }.catalog-filters label:first-child { grid-column: auto; }
 }
+.product-form-actions { display: none; }
+.product-form:has(details[open]) .product-form-actions { display: flex; }
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .product-card:hover,.category-card:hover,.button-primary:hover { transform: none; }

@@ -51,4 +51,3 @@ export function InfoIcon(props: IconProps) {
 export function ChevronIcon(props: IconProps) {
   return <IconBase {...props}><path d="m8 10 4 4 4-4" {...strokeProps} /></IconBase>;
 }
-
