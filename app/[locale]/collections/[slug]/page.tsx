@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 
 import { CatalogPage } from "@/components/product/catalog-page";
 import { collectionMatches, listPublicCategories, listPublicProducts } from "@/lib/catalog/public-data";
-import { isSupportedLocale } from "@/lib/i18n/config";
+import { isSupportedLocale, type AppLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/get-messages";
 
 type CollectionSlug = "new" | "featured" | "sale";
 function isCollectionSlug(value: string): value is CollectionSlug { return value === "new" || value === "featured" || value === "sale"; }
-function collections(locale: "zh") {
+function collections(locale: AppLocale) {
   const messages = getMessages(locale).public.collections;
   return {
     new: { title: messages.newTitle, description: messages.newDescription },
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { locale, slug } = await params;
   if (!isSupportedLocale(locale) || !isCollectionSlug(slug)) return {};
   const item = collections(locale)[slug];
-  return { title: item.title, description: item.description, alternates: { canonical: `/${locale}/collections/${slug}` } };
+  return { title: item.title, description: item.description, alternates: { canonical: `/${locale}/collections/${slug}`, languages: { en: `/en/collections/${slug}`, zh: `/zh/collections/${slug}` } } };
 }
 
 export default async function CollectionPage({ params }: { params: Params }) {

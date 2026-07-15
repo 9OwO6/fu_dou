@@ -12,6 +12,7 @@ export type PendingProductImage = {
   file: File;
   previewUrl: string;
   altText: string;
+  altTextEn: string;
   variantId: string;
   width: number | null;
   height: number | null;
@@ -71,6 +72,7 @@ export async function uploadPendingProductImages(
       id,
       storagePath: path,
       altText: image.altText.trim(),
+      altTextEn: image.altTextEn.trim(),
       variantId: image.variantId || null,
       width: image.width,
       height: image.height,

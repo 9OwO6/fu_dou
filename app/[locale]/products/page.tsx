@@ -6,7 +6,12 @@ import { listPublicCategories, listPublicProducts, type CatalogFilters } from "@
 import { isSupportedLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/get-messages";
 
-export const metadata: Metadata = { title: "全部商品", description: "搜索和筛选 Happy Beans 福豆的全部公开商品。", alternates: { canonical: "/zh/products" } };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const messages = getMessages(locale).public.catalog;
+  return { title: messages.allTitle, description: messages.allSeoDescription, alternates: { canonical: `/${locale}/products`, languages: { en: "/en/products", zh: "/zh/products" } } };
+}
 
 type SearchParams = Promise<{ q?: string; category?: string; stock?: string; sale?: string; sort?: string }>;
 

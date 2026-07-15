@@ -9,8 +9,6 @@ import { useCart } from "@/components/cart/cart-provider";
 import type { PublicProduct } from "@/lib/catalog/public-data";
 import type { AppLocale } from "@/lib/i18n/config";
 
-const cad = new Intl.NumberFormat("zh-CA", { style: "currency", currency: "CAD" });
-
 type ProductMessages = {
   galleryLabel: string;
   imagePreparing: string;
@@ -36,9 +34,14 @@ type ProductMessages = {
   pickupBody: string;
   deliveryTitle: string;
   deliveryBody: string;
+  saleBadge: string;
+  newBadge: string;
+  fromSuffix: string;
+  stockUnit: string;
 };
 
 export function ProductExperience({ product, messages, locale }: { product: PublicProduct; messages: ProductMessages; locale: AppLocale }) {
+  const cad = useMemo(() => new Intl.NumberFormat(locale === "en" ? "en-CA" : "zh-CA", { style: "currency", currency: "CAD" }), [locale]);
   const { addItem, items } = useCart();
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
@@ -84,12 +87,12 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
       <section aria-label={messages.galleryLabel} className="product-gallery">
         <div className="gallery-main">
           {activeImage?.url ? <img alt={activeImage.alt} src={activeImage.url} /> : <div className="gallery-placeholder"><Image alt="" src={logo} /><p>{messages.imagePreparing}</p></div>}
-          {activeImage?.url ? <a className="gallery-open" href={activeImage.url} rel="noreferrer" target="_blank">{messages.openOriginal}<span className="sr-only">：{activeImage.alt}</span></a> : null}
+          {activeImage?.url ? <a className="gallery-open" href={activeImage.url} rel="noreferrer" target="_blank">{messages.openOriginal}<span className="sr-only">{locale === "en" ? ": " : "："}{activeImage.alt}</span></a> : null}
         </div>
         {visibleImages.length > 1 ? (
           <div className="gallery-thumbnails" role="list">
             {visibleImages.map((image) => (
-              <button aria-label={`${messages.viewImage}：${image.alt}`} aria-pressed={image.id === activeImage?.id} className={image.id === activeImage?.id ? "is-active" : ""} key={image.id} onClick={() => setActiveImageId(image.id)} type="button">
+              <button aria-label={`${messages.viewImage}${locale === "en" ? ": " : "："}${image.alt}`} aria-pressed={image.id === activeImage?.id} className={image.id === activeImage?.id ? "is-active" : ""} key={image.id} onClick={() => setActiveImageId(image.id)} type="button">
                 {image.url ? <img alt="" src={image.url} /> : <Image alt="" src={logo} />}
               </button>
             ))}
@@ -99,18 +102,18 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
 
       <section className="product-purchase" aria-labelledby="product-title">
         <div className="product-title-block">
-          <div className="detail-badges">{product.isOnSale ? <span className="badge badge-sale">特价</span> : null}{product.newFrom ? <span className="badge badge-new">新品</span> : null}</div>
+          <div className="detail-badges">{product.isOnSale ? <span className="badge badge-sale">{messages.saleBadge}</span> : null}{product.newFrom ? <span className="badge badge-new">{messages.newBadge}</span> : null}</div>
           <h1 id="product-title">{product.title}</h1>
           {product.shortDescription ? <p>{product.shortDescription}</p> : null}
         </div>
-        <div className="detail-price"><strong>{cad.format(displayPrice)}</strong>{displayCompareAt ? <del>{cad.format(displayCompareAt)}</del> : null}{!selectedVariant && product.minimumPrice !== product.maximumPrice ? <span>起</span> : null}</div>
+        <div className="detail-price"><strong>{cad.format(displayPrice)}</strong>{displayCompareAt ? <del>{cad.format(displayCompareAt)}</del> : null}{!selectedVariant && product.minimumPrice !== product.maximumPrice ? <span>{messages.fromSuffix}</span> : null}</div>
         <p className={displayStock === 0 || (!selectedVariant && !product.hasStock) ? "detail-stock stock-out" : "detail-stock stock-in"} aria-live="polite">
-          {selectedVariant ? (selectedVariant.stockQty > 0 ? `${messages.stockWithCount} · ${selectedVariant.stockQty} 件` : messages.variantSoldOut) : product.options.length > 0 ? messages.chooseForStock : product.hasStock ? messages.stockWithCount : messages.variantSoldOut}
+          {selectedVariant ? (selectedVariant.stockQty > 0 ? `${messages.stockWithCount} · ${selectedVariant.stockQty} ${messages.stockUnit}` : messages.variantSoldOut) : product.options.length > 0 ? messages.chooseForStock : product.hasStock ? messages.stockWithCount : messages.variantSoldOut}
         </p>
 
         {product.options.map((option) => (
           <fieldset className="option-group" key={option.id}>
-            <legend>{option.name}{selected[option.id] ? <span>{messages.selected}：{option.values.find((value) => value.id === selected[option.id])?.label}</span> : null}</legend>
+            <legend>{option.name}{selected[option.id] ? <span>{messages.selected}{locale === "en" ? ": " : "："}{option.values.find((value) => value.id === selected[option.id])?.label}</span> : null}</legend>
             <div className="option-values">
               {option.values.map((value) => {
                 const possible = valueIsPossible(option.id, value.id);

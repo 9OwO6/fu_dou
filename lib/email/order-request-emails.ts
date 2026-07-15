@@ -25,6 +25,7 @@ type OrderItemRow = {
 type OrderRow = {
   id: string;
   request_number: string;
+  request_locale: "en" | "zh";
   customer_name: string;
   email: string;
   phone: string | null;
@@ -41,8 +42,6 @@ type OrderRow = {
   order_request_emails: OrderEmailRow[];
 };
 
-const cad = new Intl.NumberFormat("zh-CA", { style: "currency", currency: "CAD" });
-
 function emailConfiguration() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.ORDER_EMAIL_FROM?.trim();
@@ -51,19 +50,22 @@ function emailConfiguration() {
   return apiKey && from && owner && siteUrl ? { apiKey, from, owner, siteUrl } : null;
 }
 
-function itemLines(items: OrderItemRow[]) {
+function itemLines(items: OrderItemRow[], locale: "en" | "zh") {
+  const cad = new Intl.NumberFormat(locale === "en" ? "en-CA" : "zh-CA", { style: "currency", currency: "CAD" });
   return items.map((item) =>
     `- ${item.product_title_snapshot}｜${item.variant_label_snapshot}｜SKU ${item.sku_snapshot}｜${item.quantity} × ${cad.format(Number(item.unit_price_snapshot))} = ${cad.format(Number(item.line_total_snapshot))}`,
   ).join("\n");
 }
 
 function ownerText(order: OrderRow, adminUrl: string) {
+  const cad = new Intl.NumberFormat("zh-CA", { style: "currency", currency: "CAD" });
   return [
     `Happy Beans 收到新的订单请求：${order.request_number}`,
     "",
     "重要：此请求尚未付款，也尚未最终确认。请先联系顾客核对库存、履约、税费及最终金额。",
     "",
     `提交时间：${new Date(order.created_at).toLocaleString("zh-CA", { timeZone: "America/Vancouver" })}`,
+    `顾客浏览语言：${order.request_locale === "en" ? "English" : "中文"}`,
     `顾客：${order.customer_name}`,
     `邮箱：${order.email}`,
     `电话：${order.phone ?? "未提供"}`,
@@ -75,7 +77,7 @@ function ownerText(order: OrderRow, adminUrl: string) {
     `期望时间：${order.preferred_time ?? "未提供"}`,
     `顾客备注：${order.customer_note ?? "无"}`,
     "",
-    itemLines(order.order_request_items),
+    itemLines(order.order_request_items, order.request_locale),
     `商品小计：${cad.format(Number(order.subtotal_snapshot))}`,
     "运费、税费及最终金额待联系确认。",
     "",
@@ -84,6 +86,22 @@ function ownerText(order: OrderRow, adminUrl: string) {
 }
 
 function customerText(order: OrderRow, contactEmail: string) {
+  const cad = new Intl.NumberFormat(order.request_locale === "en" ? "en-CA" : "zh-CA", { style: "currency", currency: "CAD" });
+  if (order.request_locale === "en") {
+    return [
+      `Hello ${order.customer_name},`,
+      "",
+      `We received your order request. Request number: ${order.request_number}`,
+      "",
+      "This is not a payment receipt. You have not paid, and the order is not finally confirmed. Happy Beans will contact you to confirm stock, pickup or delivery, taxes, and the final total.",
+      "",
+      itemLines(order.order_request_items, "en"),
+      `Merchandise subtotal: ${cad.format(Number(order.subtotal_snapshot))}`,
+      "Delivery fees, taxes, and the final total are still to be confirmed.",
+      "",
+      `To add information, contact: ${contactEmail}`,
+    ].join("\n");
+  }
   return [
     `${order.customer_name}，您好！`,
     "",
@@ -91,7 +109,7 @@ function customerText(order: OrderRow, contactEmail: string) {
     "",
     "这不是付款成功通知。您尚未付款，订单也尚未最终确认。Happy Beans 会按您选择的联系方式核对库存、自取或配送安排、税费及最终金额。",
     "",
-    itemLines(order.order_request_items),
+    itemLines(order.order_request_items, "zh"),
     `商品小计：${cad.format(Number(order.subtotal_snapshot))}`,
     "运费、税费及最终金额待确认。",
     "",
@@ -148,7 +166,9 @@ async function sendOne(order: OrderRow, email: OrderEmailRow) {
       to: [isOwner ? config.owner : order.email],
       subject: isOwner
         ? `新订单请求 ${order.request_number}（未付款、待确认）`
-        : `已收到订单请求 ${order.request_number}（未付款、待确认）`,
+        : order.request_locale === "en"
+          ? `Order request received ${order.request_number} (unpaid, pending confirmation)`
+          : `已收到订单请求 ${order.request_number}（未付款、待确认）`,
       text: isOwner
         ? ownerText(order, `${config.siteUrl.replace(/\/$/, "")}/admin/orders/${order.id}`)
         : customerText(order, config.owner),
@@ -176,7 +196,7 @@ export async function sendOrderRequestEmails(orderRequestId: string, onlyKind?: 
   const supabase = createSupabaseServiceClient();
   const { data, error } = await supabase
     .from("order_requests")
-    .select("id, request_number, customer_name, email, phone, preferred_contact, fulfillment_method, city_or_area, postal_code, wechat_or_other_contact, preferred_time, customer_note, subtotal_snapshot, created_at, order_request_items(product_title_snapshot, variant_label_snapshot, sku_snapshot, unit_price_snapshot, quantity, line_total_snapshot), order_request_emails(id, kind, status, attempt_count)")
+    .select("id, request_number, request_locale, customer_name, email, phone, preferred_contact, fulfillment_method, city_or_area, postal_code, wechat_or_other_contact, preferred_time, customer_note, subtotal_snapshot, created_at, order_request_items(product_title_snapshot, variant_label_snapshot, sku_snapshot, unit_price_snapshot, quantity, line_total_snapshot), order_request_emails(id, kind, status, attempt_count)")
     .eq("id", orderRequestId)
     .single();
   if (error || !data) return;

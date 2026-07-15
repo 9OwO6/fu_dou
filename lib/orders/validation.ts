@@ -1,4 +1,6 @@
 import { MAX_CART_ITEMS, MAX_ITEM_QUANTITY } from "@/lib/cart/schema";
+import type { AppLocale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/get-messages";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,7 +68,8 @@ function parseItems(value: string) {
   }
 }
 
-export function parseOrderRequestForm(formData: FormData): OrderRequestParseResult {
+export function parseOrderRequestForm(formData: FormData, locale: AppLocale = "zh"): OrderRequestParseResult {
+  const messages = getMessages(locale).public.orderRequest;
   const customerName = stringValue(formData, "customerName");
   const email = stringValue(formData, "email").toLowerCase();
   const phone = stringValue(formData, "phone");
@@ -81,20 +84,20 @@ export function parseOrderRequestForm(formData: FormData): OrderRequestParseResu
   const honeypotFilled = stringValue(formData, "companyWebsite").length > 0;
   const fieldErrors: Partial<Record<OrderRequestField, string>> = {};
 
-  if (customerName.length < 1 || customerName.length > 120) fieldErrors.customerName = "请输入 1–120 个字符的姓名。";
-  if (email.length > 320 || !EMAIL_PATTERN.test(email)) fieldErrors.email = "请输入有效的邮箱地址。";
-  if (preferredContact !== "email" && preferredContact !== "phone") fieldErrors.preferredContact = "请选择偏好联系方式。";
-  if (preferredContact === "phone" && !phone) fieldErrors.phone = "选择电话联系时必须填写联系电话。";
-  if (phone.length > 40) fieldErrors.phone = "联系电话不能超过 40 个字符。";
-  if (fulfillmentMethod !== "pickup" && fulfillmentMethod !== "local_delivery") fieldErrors.fulfillmentMethod = "请选择自取或本地配送。";
-  if (cityOrArea.length < 1 || cityOrArea.length > 120) fieldErrors.cityOrArea = "请输入 1–120 个字符的城市或区域。";
-  if (fulfillmentMethod === "local_delivery" && !postalCode) fieldErrors.postalCode = "选择本地配送时必须填写邮编。";
-  if (postalCode.length > 20) fieldErrors.postalCode = "邮编不能超过 20 个字符。";
-  if (wechatOrOtherContact.length > 120) fieldErrors.wechatOrOtherContact = "补充联系方式不能超过 120 个字符。";
-  if (preferredTime.length > 200) fieldErrors.preferredTime = "期望时间不能超过 200 个字符。";
-  if (customerNote.length > 2000) fieldErrors.customerNote = "订单备注不能超过 2000 个字符。";
-  if (formData.get("consent") !== "on") fieldErrors.consent = "请先同意订单请求与隐私说明。";
-  if (!items) fieldErrors.cart = "购物车为空或数据无效，请返回购物车重新确认。";
+  if (customerName.length < 1 || customerName.length > 120) fieldErrors.customerName = messages.nameError;
+  if (email.length > 320 || !EMAIL_PATTERN.test(email)) fieldErrors.email = messages.emailError;
+  if (preferredContact !== "email" && preferredContact !== "phone") fieldErrors.preferredContact = messages.contactError;
+  if (preferredContact === "phone" && !phone) fieldErrors.phone = messages.phoneRequiredError;
+  if (phone.length > 40) fieldErrors.phone = messages.phoneLengthError;
+  if (fulfillmentMethod !== "pickup" && fulfillmentMethod !== "local_delivery") fieldErrors.fulfillmentMethod = messages.fulfillmentError;
+  if (cityOrArea.length < 1 || cityOrArea.length > 120) fieldErrors.cityOrArea = messages.cityError;
+  if (fulfillmentMethod === "local_delivery" && !postalCode) fieldErrors.postalCode = messages.postalRequiredError;
+  if (postalCode.length > 20) fieldErrors.postalCode = messages.postalLengthError;
+  if (wechatOrOtherContact.length > 120) fieldErrors.wechatOrOtherContact = messages.otherContactError;
+  if (preferredTime.length > 200) fieldErrors.preferredTime = messages.timeError;
+  if (customerNote.length > 2000) fieldErrors.customerNote = messages.noteError;
+  if (formData.get("consent") !== "on") fieldErrors.consent = messages.consentError;
+  if (!items) fieldErrors.cart = messages.cartError;
 
   if (Object.keys(fieldErrors).length > 0 || !items) {
     return { success: false, fieldErrors, honeypotFilled };

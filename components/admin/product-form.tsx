@@ -96,6 +96,7 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
         file,
         previewUrl: URL.createObjectURL(file),
         altText: `${titlePrefix} 图片 ${index + 1}`,
+        altTextEn: "",
         variantId: "",
         ...dimensions,
       });
@@ -104,9 +105,9 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
     setImageMessage("");
   }
 
-  function updatePendingImage(index: number, altText: string) {
+  function updatePendingImage(index: number, field: "altText" | "altTextEn", altText: string) {
     setPendingImages((current) => {
-      const next = current.map((image, imageIndex) => imageIndex === index ? { ...image, altText } : image);
+      const next = current.map((image, imageIndex) => imageIndex === index ? { ...image, [field]: altText } : image);
       pendingImagesRef.current = next;
       return next;
     });
@@ -126,44 +127,73 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
     <form action={formAction} className="space-y-8" ref={formRef}>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-basic-heading">
         <h2 className="text-lg font-semibold" id="product-basic-heading">基础内容</h2>
+        <p className="mt-1 text-sm text-slate-600">网址标识中英文共用；中文内容必填，英文可分阶段补齐。英文缺失的商品不会出现在英文站。</p>
         <div className="mt-5 grid gap-5">
-          <label className="block font-medium" htmlFor="title">
-            中文标题 <span className="text-rose-600" aria-hidden="true">*</span>
-            <input aria-describedby={state.fieldErrors.title ? "title-error" : undefined} aria-invalid={Boolean(state.fieldErrors.title)} className={inputClass} defaultValue={product?.title} id="title" maxLength={200} name="title" required />
-            <FieldError id="title-error" message={state.fieldErrors.title} />
-          </label>
           <label className="block font-medium" htmlFor="slug">
             网址标识 <span className="text-rose-600" aria-hidden="true">*</span>
             <input aria-describedby={state.fieldErrors.slug ? "slug-error" : "slug-help"} aria-invalid={Boolean(state.fieldErrors.slug)} autoCapitalize="none" className={inputClass} defaultValue={product?.slug} id="slug" maxLength={160} name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required />
             <span className="mt-1 block text-sm font-normal text-slate-500" id="slug-help">仅使用小写字母、数字和连字符，例如 cat-mug。</span>
             <FieldError id="slug-error" message={state.fieldErrors.slug} />
           </label>
-          <label className="block font-medium" htmlFor="shortDescription">
-            简短描述
-            <textarea aria-describedby={state.fieldErrors.shortDescription ? "short-description-error" : undefined} aria-invalid={Boolean(state.fieldErrors.shortDescription)} className={inputClass} defaultValue={product?.shortDescription} id="shortDescription" maxLength={300} name="shortDescription" rows={3} />
-            <FieldError id="short-description-error" message={state.fieldErrors.shortDescription} />
-          </label>
-          <label className="block font-medium" htmlFor="description">
-            商品描述
-            <textarea aria-describedby={state.fieldErrors.description ? "description-error" : undefined} aria-invalid={Boolean(state.fieldErrors.description)} className={inputClass} defaultValue={product?.description} id="description" maxLength={10000} name="description" rows={9} />
-            <FieldError id="description-error" message={state.fieldErrors.description} />
-          </label>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="block font-medium" htmlFor="title">
+              中文标题 <span className="text-rose-600" aria-hidden="true">*</span>
+              <input aria-describedby={state.fieldErrors.title ? "title-error" : undefined} aria-invalid={Boolean(state.fieldErrors.title)} className={inputClass} defaultValue={product?.title} id="title" maxLength={200} name="title" required />
+              <FieldError id="title-error" message={state.fieldErrors.title} />
+            </label>
+            <label className="block font-medium" htmlFor="titleEn">
+              English title
+              <input aria-describedby={state.fieldErrors.titleEn ? "title-en-error" : "title-en-help"} aria-invalid={Boolean(state.fieldErrors.titleEn)} className={inputClass} defaultValue={product?.titleEn} id="titleEn" lang="en" maxLength={200} name="titleEn" />
+              <span className="mt-1 block text-sm font-normal text-slate-500" id="title-en-help">填写任意英文内容时必填；留空则英文站隐藏此商品。</span>
+              <FieldError id="title-en-error" message={state.fieldErrors.titleEn} />
+            </label>
+            <label className="block font-medium" htmlFor="shortDescription">
+              中文简短描述
+              <textarea aria-describedby={state.fieldErrors.shortDescription ? "short-description-error" : undefined} aria-invalid={Boolean(state.fieldErrors.shortDescription)} className={inputClass} defaultValue={product?.shortDescription} id="shortDescription" maxLength={300} name="shortDescription" rows={3} />
+              <FieldError id="short-description-error" message={state.fieldErrors.shortDescription} />
+            </label>
+            <label className="block font-medium" htmlFor="shortDescriptionEn">
+              English short description
+              <textarea aria-describedby={state.fieldErrors.shortDescriptionEn ? "short-description-en-error" : undefined} aria-invalid={Boolean(state.fieldErrors.shortDescriptionEn)} className={inputClass} defaultValue={product?.shortDescriptionEn} id="shortDescriptionEn" lang="en" maxLength={300} name="shortDescriptionEn" rows={3} />
+              <FieldError id="short-description-en-error" message={state.fieldErrors.shortDescriptionEn} />
+            </label>
+            <label className="block font-medium" htmlFor="description">
+              中文商品描述
+              <textarea aria-describedby={state.fieldErrors.description ? "description-error" : undefined} aria-invalid={Boolean(state.fieldErrors.description)} className={inputClass} defaultValue={product?.description} id="description" maxLength={10000} name="description" rows={9} />
+              <FieldError id="description-error" message={state.fieldErrors.description} />
+            </label>
+            <label className="block font-medium" htmlFor="descriptionEn">
+              English description
+              <textarea aria-describedby={state.fieldErrors.descriptionEn ? "description-en-error" : undefined} aria-invalid={Boolean(state.fieldErrors.descriptionEn)} className={inputClass} defaultValue={product?.descriptionEn} id="descriptionEn" lang="en" maxLength={10000} name="descriptionEn" rows={9} />
+              <FieldError id="description-en-error" message={state.fieldErrors.descriptionEn} />
+            </label>
+          </div>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="product-seo-heading">
         <h2 className="text-lg font-semibold" id="product-seo-heading">SEO</h2>
         <p className="mt-1 text-sm text-slate-500">留空时，公开页面会使用商品标题与描述生成默认值。</p>
-        <div className="mt-5 grid gap-5">
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <label className="block font-medium" htmlFor="seoTitle">
-            SEO 标题
+            中文 SEO 标题
             <input aria-describedby={state.fieldErrors.seoTitle ? "seo-title-error" : undefined} aria-invalid={Boolean(state.fieldErrors.seoTitle)} className={inputClass} defaultValue={product?.seoTitle} id="seoTitle" maxLength={70} name="seoTitle" />
             <FieldError id="seo-title-error" message={state.fieldErrors.seoTitle} />
           </label>
+          <label className="block font-medium" htmlFor="seoTitleEn">
+            English SEO title
+            <input aria-describedby={state.fieldErrors.seoTitleEn ? "seo-title-en-error" : undefined} aria-invalid={Boolean(state.fieldErrors.seoTitleEn)} className={inputClass} defaultValue={product?.seoTitleEn} id="seoTitleEn" lang="en" maxLength={70} name="seoTitleEn" />
+            <FieldError id="seo-title-en-error" message={state.fieldErrors.seoTitleEn} />
+          </label>
           <label className="block font-medium" htmlFor="seoDescription">
-            SEO 描述
+            中文 SEO 描述
             <textarea aria-describedby={state.fieldErrors.seoDescription ? "seo-description-error" : undefined} aria-invalid={Boolean(state.fieldErrors.seoDescription)} className={inputClass} defaultValue={product?.seoDescription} id="seoDescription" maxLength={160} name="seoDescription" rows={3} />
             <FieldError id="seo-description-error" message={state.fieldErrors.seoDescription} />
+          </label>
+          <label className="block font-medium" htmlFor="seoDescriptionEn">
+            English SEO description
+            <textarea aria-describedby={state.fieldErrors.seoDescriptionEn ? "seo-description-en-error" : undefined} aria-invalid={Boolean(state.fieldErrors.seoDescriptionEn)} className={inputClass} defaultValue={product?.seoDescriptionEn} id="seoDescriptionEn" lang="en" maxLength={160} name="seoDescriptionEn" rows={3} />
+            <FieldError id="seo-description-en-error" message={state.fieldErrors.seoDescriptionEn} />
           </label>
         </div>
       </section>
@@ -197,9 +227,19 @@ export function ProductForm({ product }: { product?: AdminProductDetail }) {
                     <input
                       className={`${inputClass} mt-1`}
                       maxLength={300}
-                      onChange={(event) => updatePendingImage(index, event.target.value)}
+                      onChange={(event) => updatePendingImage(index, "altText", event.target.value)}
                       required
                       value={image.altText}
+                    />
+                  </label>
+                  <label className="mt-3 block text-sm font-medium">
+                    English alt text
+                    <input
+                      className={`${inputClass} mt-1`}
+                      lang="en"
+                      maxLength={300}
+                      onChange={(event) => updatePendingImage(index, "altTextEn", event.target.value)}
+                      value={image.altTextEn}
                     />
                   </label>
                   <button

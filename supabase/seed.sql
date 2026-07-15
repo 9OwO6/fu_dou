@@ -176,12 +176,12 @@ on conflict (product_id, collection_id) do update set sort_order = excluded.sort
 insert into public.homepage_section_translations (
   section_id, locale, heading, body, cta_label, cta_href, content_json
 )
-select section.id, defaults.locale, defaults.heading, defaults.body, defaults.cta_label, defaults.cta_href, '{}'::jsonb
+select section.id, defaults.locale, defaults.heading, defaults.body, defaults.cta_label, defaults.cta_href, defaults.content_json
 from (
   values
-    ('hero'::public.homepage_section_type, 'en', 'Local Demo Hero', 'Used only to validate the translation structure.', 'View demo products', '/products'),
-    ('faq'::public.homepage_section_type, 'en', 'Local Demo FAQ', 'Used only to validate the translation structure.', null, null)
-) as defaults(section_type, locale, heading, body, cta_label, cta_href)
+    ('hero'::public.homepage_section_type, 'en', 'Local Demo Hero', 'Used only to validate the translation structure.', 'View demo products', '/products', '{}'::jsonb),
+    ('faq'::public.homepage_section_type, 'en', 'Local Demo FAQ', 'Used only to validate the translation structure.', null, null, '{"items":[{"question":"Can I pay online?","answer":"This demo accepts an unpaid order request only."}]}'::jsonb)
+) as defaults(section_type, locale, heading, body, cta_label, cta_href, content_json)
 join public.homepage_sections as section on section.section_type = defaults.section_type
 on conflict (section_id, locale) do update
 set heading = excluded.heading,

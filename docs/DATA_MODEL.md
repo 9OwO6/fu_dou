@@ -1,16 +1,17 @@
 # Happy Beans 数据模型与权限基线
 
-> 状态：Phase 3 数据基线、管理员审计、商品/订单流程与 Phase 9 首页受控配置均已完成；本地数据库已从零重建，176 个 pgTAP 断言通过。  
-> 迁移：`supabase/migrations/20260713075314_phase_3_initial_schema.sql`、`supabase/migrations/20260713162320_phase_4_admin_audit.sql`、`supabase/migrations/20260713184334_phase_5a_catalog_admin_functions.sql`、`supabase/migrations/20260713190629_phase_5b_variant_admin.sql`  
+> 状态：Phase 3 数据基线、管理员审计、商品/订单流程、Phase 9 首页受控配置与 Phase 12 英文扩展均已在本地完成；数据库已从零重建，203 个 pgTAP 断言通过。
+>
+> 迁移：全部正式历史位于 `supabase/migrations/`；本次英文扩展为 `20260715191638_phase_12_english_storefront.sql`。
 > 本地数据：`supabase/seed.sql`（仅 `DEMO-*` 开发数据）
 
 ## 1. 设计边界
 
 - 第一版只有 CAD，不包含支付、自动税费、复杂运费、多币种或顾客账号。
-- 商品、分类、集合、规格名称、规格值和首页模块使用基础表与 translation 表分离；当前 seed 同时验证 `zh`、`en` 结构，但第一版 UI 仍只启用中文。
+- 商品、分类、集合、规格名称、规格值、商品图片替代文字、首页模块和站点设置使用基础表与 translation 表分离；顾客端启用 `en` 与 `zh`，后台界面保持中文并成对录入两种语言。
 - 每个商品至少有一个 `product_variants` 行。无可选规格商品使用一个不关联 `variant_option_values` 的 variant。
 - 订单数据是“订单请求”，直接 Data API 不允许游客提交；Phase 8 必须通过服务端事务重新读取商品、variant、价格与库存后写入。
-- 本 Phase 不包含管理 UI、公开商城、订单 API、认证页面或邮件。
+- 初始 Phase 3 不包含管理 UI、公开商城、订单 API、认证页面或邮件；这些能力已由后续 Phase 的独立 migration 和应用层实现补充。
 
 ## 2. 关系概览
 
@@ -35,6 +36,8 @@ erDiagram
   PRODUCTS ||--o{ ORDER_REQUEST_ITEMS : "历史引用"
   PRODUCT_VARIANTS ||--o{ ORDER_REQUEST_ITEMS : "历史引用"
   HOMEPAGE_SECTIONS ||--o{ HOMEPAGE_SECTION_TRANSLATIONS : "按 locale"
+  PRODUCT_IMAGES ||--o{ PRODUCT_IMAGE_TRANSLATIONS : "按 locale"
+  SITE_SETTINGS ||--o{ SITE_SETTING_TRANSLATIONS : "按 locale"
 ```
 
 ## 3. 表与职责
@@ -50,7 +53,8 @@ erDiagram
 | 图片 | `product_images` | 只保存 private Storage 路径；可关联商品或同商品的具体 variant |
 | 集合 | `collections`, `collection_translations`, `product_collections` | `new`、`featured`、`sale` 及手动排序 |
 | 订单请求 | `order_requests`, `order_request_items` | 联系/履约信息、状态，以及标题、规格、SKU、价格、数量和图片路径快照 |
-| 首页 | `homepage_sections`, `homepage_section_translations` | 10 类受控模块、显隐、顺序、语言无关选品配置与 locale 结构化内容 |
+| 首页 | `homepage_sections`, `homepage_section_translations`, `site_settings`, `site_setting_translations` | 10 类受控模块、显隐、顺序、语言无关选品配置与 locale 结构化内容 |
+| 商品图片文案 | `product_images`, `product_image_translations` | Storage 路径与排序语言无关；替代文字按 locale 保存 |
 | 站点 | `site_settings` | 店铺联系信息、自取/本地配送开关和订单请求说明；保持单例 |
 
 Phase 4 已通过独立 migration 新增 `admin_audit_logs`：保存 actor、受控 action、可选 target 和经过限制的 JSON metadata，不保存密码、token、完整顾客输入或其他 secret。
@@ -73,6 +77,14 @@ Phase 4 已通过独立 migration 新增 `admin_audit_logs`：保存 actor、受
 - 所有 translation 表以“实体外键 + locale”为复合主键。
 - locale 格式受约束；语言无关的 SKU、价格、库存、图片和内部 key 不复制。
 - 删除基础实体会级联删除翻译，不会产生孤立翻译。
+- 英文前台的可见性是读取规则而非独立发布开关：商品必须具备英文商品翻译、全部当前规格名称和值翻译及全部图片英文替代文字；分类必须具备英文翻译。缺失时只从英文查询结果隐藏，中文不受影响。
+
+## Phase 12 英文前台扩展
+
+- `order_requests.request_locale` 只允许 `en` 或 `zh`，记录顾客提交请求时的语言；历史/默认值为 `en`。
+- `admin_create_product`、`admin_update_product`、分类、规格、图片和首页保存 RPC 均以一个数据库事务同步保存 `zh` 与 `en`，避免只保存一半语言。
+- `submit_order_request_localized` 仅授予 `service_role`，按 `request_locale` 重新读取并锁定公开商品数据，在订单 item 中保存对应语言的标题、规格和图片快照。原有金额、库存、限流与至少一项订单约束不变。
+- `product_image_translations` 与 `site_setting_translations` 同其他公开 translation 表一样启用 RLS；游客只读满足公开实体条件的内容，管理员通过既有 Auth/RLS 写入。
 
 ### 4.3 订单请求快照
 

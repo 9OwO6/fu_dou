@@ -11,8 +11,6 @@ import type { ValidatedCartItem } from "@/lib/cart/server-validation";
 import type { AppLocale } from "@/lib/i18n/config";
 import { useCart } from "./cart-provider";
 
-const cad = new Intl.NumberFormat("zh-CA", { style: "currency", currency: "CAD" });
-
 type CartMessages = {
   title: string;
   intro: string;
@@ -48,6 +46,7 @@ type CartMessages = {
 };
 
 export function CartPage({ locale, messages }: { locale: AppLocale; messages: CartMessages }) {
+  const cad = useMemo(() => new Intl.NumberFormat(locale === "en" ? "en-CA" : "zh-CA", { style: "currency", currency: "CAD" }), [locale]);
   const {
     items,
     hydrated,
@@ -77,7 +76,6 @@ export function CartPage({ locale, messages }: { locale: AppLocale; messages: Ca
       return;
     }
     if (lastValidationKey.current === validationKey) return;
-    lastValidationKey.current = validationKey;
     let cancelled = false;
     revalidateCart(locale, items.map((item) => ({
       variantId: item.variantId,
@@ -85,12 +83,16 @@ export function CartPage({ locale, messages }: { locale: AppLocale; messages: Ca
       previousPriceCad: item.lastValidatedPriceCad,
     }))).then((result) => {
       if (cancelled) return;
+      lastValidationKey.current = validationKey;
       setValidationResult({ key: validationKey, status: "ready", items: result });
       for (const item of result) {
         if (item.status === "valid" && item.product) saveValidatedPrice(item.variantId, item.product.unitPriceCad);
       }
     }).catch(() => {
-      if (!cancelled) setValidationResult({ key: validationKey, status: "error", items: [] });
+      if (!cancelled) {
+        lastValidationKey.current = validationKey;
+        setValidationResult({ key: validationKey, status: "error", items: [] });
+      }
     });
     return () => { cancelled = true; };
   }, [hydrated, items, locale, saveValidatedPrice, validationKey]);
@@ -115,7 +117,7 @@ export function CartPage({ locale, messages }: { locale: AppLocale; messages: Ca
     <main className="cart-page">
       <div className="store-container">
         <div className="cart-heading">
-          <div><p className="cart-kicker">Happy Beans / 福豆</p><h1>{messages.title}</h1><p>{messages.intro}</p></div>
+          <div><p className="cart-kicker">Happy Beans{locale === "zh" ? " / 福豆" : ""}</p><h1>{messages.title}</h1><p>{messages.intro}</p></div>
           <Link className="button-secondary" href={`/${locale}/products`}>{messages.continueShopping}</Link>
         </div>
 
@@ -158,11 +160,11 @@ export function CartPage({ locale, messages }: { locale: AppLocale; messages: Ca
                       {product.imageUrl ? <img alt={product.imageAlt} src={product.imageUrl} /> : <Image alt="" src={logo} />}
                     </Link>
                     <div className="cart-item-main">
-                      <div className="cart-item-title-row"><div><h2><Link href={`/${locale}/products/${product.slug}`}>{product.title}</Link></h2><p>{product.variantLabel}</p><span>SKU：{product.sku}</span></div><button aria-label={`${messages.remove}：${product.title}`} className="cart-remove" onClick={() => removeItem(item.variantId)} type="button">{messages.remove}</button></div>
+                      <div className="cart-item-title-row"><div><h2><Link href={`/${locale}/products/${product.slug}`}>{product.title}</Link></h2><p>{product.variantLabel}</p><span>SKU: {product.sku}</span></div><button aria-label={`${messages.remove}${locale === "en" ? ": " : "："}${product.title}`} className="cart-remove" onClick={() => removeItem(item.variantId)} type="button">{messages.remove}</button></div>
                       {item.priceChanged ? <p className="cart-warning" role="status">{messages.priceChanged}</p> : null}
                       {product.stockQty === 0 ? <p className="cart-warning" role="alert">{messages.soldOut}</p> : insufficient ? <p className="cart-warning" role="alert">{messages.stockChanged.replace("{stock}", String(product.stockQty))}</p> : null}
                       <div className="cart-item-controls">
-                        <div><span>{messages.quantity}</span><div className="quantity-control"><button aria-label={`${messages.decrease}：${product.title}`} disabled={item.quantity <= 1} onClick={() => updateQuantity(item.variantId, item.quantity - 1)} type="button">−</button><output aria-live="polite">{item.quantity}</output><button aria-label={`${messages.increase}：${product.title}`} disabled={item.quantity >= product.stockQty || item.quantity >= 99} onClick={() => updateQuantity(item.variantId, item.quantity + 1)} type="button">＋</button></div></div>
+                        <div><span>{messages.quantity}</span><div className="quantity-control"><button aria-label={`${messages.decrease}${locale === "en" ? ": " : "："}${product.title}`} disabled={item.quantity <= 1} onClick={() => updateQuantity(item.variantId, item.quantity - 1)} type="button">−</button><output aria-live="polite">{item.quantity}</output><button aria-label={`${messages.increase}${locale === "en" ? ": " : "："}${product.title}`} disabled={item.quantity >= product.stockQty || item.quantity >= 99} onClick={() => updateQuantity(item.variantId, item.quantity + 1)} type="button">＋</button></div></div>
                         <dl><div><dt>{messages.unitPrice}</dt><dd>{cad.format(product.unitPriceCad)}{product.compareAtPriceCad ? <del>{cad.format(product.compareAtPriceCad)}</del> : null}</dd></div><div><dt>{messages.lineTotal}</dt><dd>{cad.format(product.unitPriceCad * item.quantity)}</dd></div></dl>
                       </div>
                     </div>

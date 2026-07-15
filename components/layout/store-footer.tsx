@@ -14,7 +14,7 @@ export function StoreFooter({ locale }: { locale: AppLocale }) {
         <div className="footer-brand">
           <Image alt="" className="footer-logo" src={logo} />
           <div>
-            <p className="font-bold">Happy Beans / 福豆</p>
+            <p className="font-bold">Happy Beans{locale === "zh" ? " / 福豆" : ""}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--hb-text-muted)]">{messages.tagline}</p>
           </div>
         </div>
@@ -37,7 +37,7 @@ export function StoreFooter({ locale }: { locale: AppLocale }) {
         </div>
       </div>
       <div className="store-container footer-bottom">
-        <span>© {new Date().getFullYear()} Happy Beans 福豆</span>
+        <span>© {new Date().getFullYear()} Happy Beans{locale === "zh" ? " 福豆" : ""}</span>
         <span>{messages.region}</span>
       </div>
     </footer>

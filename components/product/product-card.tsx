@@ -7,14 +7,13 @@ import type { AppLocale } from "@/lib/i18n/config";
 import type { PublicProduct } from "@/lib/catalog/public-data";
 import { getMessages } from "@/lib/i18n/get-messages";
 
-const cad = new Intl.NumberFormat("zh-CA", { style: "currency", currency: "CAD" });
-
 export function ProductCard({ product, locale }: { product: PublicProduct; locale: AppLocale }) {
+  const cad = new Intl.NumberFormat(locale === "en" ? "en-CA" : "zh-CA", { style: "currency", currency: "CAD" });
   const cover = product.images[0];
   const messages = getMessages(locale).public.common;
   return (
     <article className="product-card">
-      <Link aria-label={`查看${product.title}`} className="product-card-media" href={`/${locale}/products/${product.slug}`}>
+      <Link aria-label={messages.viewProduct.replace("{product}", product.title)} className="product-card-media" href={`/${locale}/products/${product.slug}`}>
         {cover?.url ? (
           <img alt={cover.alt} loading="lazy" src={cover.url} />
         ) : (
@@ -33,7 +32,7 @@ export function ProductCard({ product, locale }: { product: PublicProduct; local
         <Link className="product-card-title" href={`/${locale}/products/${product.slug}`}>{product.title}</Link>
         {product.categories.length > 0 ? <p className="product-card-meta">{product.categories.map((category) => category.name).join(" · ")}</p> : null}
         <div className="product-price-row">
-          <strong>{product.minimumPrice === product.maximumPrice ? cad.format(product.minimumPrice) : `${cad.format(product.minimumPrice)} ${messages.from}`}</strong>
+          <strong>{product.minimumPrice === product.maximumPrice ? cad.format(product.minimumPrice) : locale === "en" ? `${messages.from} ${cad.format(product.minimumPrice)}` : `${cad.format(product.minimumPrice)} ${messages.from}`}</strong>
           {product.compareAtPrice ? <del>{cad.format(product.compareAtPrice)}</del> : null}
         </div>
         <p className={product.hasStock ? "stock-in" : "stock-out"}>{product.hasStock ? messages.inStock : messages.temporarilySoldOut}</p>

@@ -56,7 +56,7 @@ export async function saveVariantConfigurationAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_save_product_variants", {
+  const { error } = await supabase.rpc("admin_save_product_variants_bilingual", {
     p_product_id: productId,
     p_configuration: parsed.values,
   });
@@ -66,4 +66,3 @@ export async function saveVariantConfigurationAction(
   revalidatePath("/admin/products");
   return { status: "success", message: "规格、价格和库存已保存。", fieldErrors: {} };
 }
-

@@ -66,7 +66,7 @@ export async function registerUploadedImagesAction(productId: string, rawImages:
     }
   }
 
-  const { error } = await supabase.rpc("admin_register_product_images", {
+  const { error } = await supabase.rpc("admin_register_product_images_bilingual", {
     p_product_id: productId,
     p_images: parsed.values,
   });
@@ -94,7 +94,7 @@ export async function saveProductImagesAction(
   if (!parsed.success) return errorState(parsed.message);
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_save_product_images", {
+  const { error } = await supabase.rpc("admin_save_product_images_bilingual", {
     p_product_id: productId,
     p_images: parsed.values,
   });

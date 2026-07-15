@@ -38,10 +38,12 @@ export async function createCategoryAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_create_category", {
+  const { error } = await supabase.rpc("admin_create_category_bilingual", {
     p_slug: parsed.values.slug,
-    p_name: parsed.values.name,
-    p_description: parsed.values.description,
+    p_zh_name: parsed.values.name,
+    p_zh_description: parsed.values.description,
+    p_en_name: parsed.values.nameEn,
+    p_en_description: parsed.values.descriptionEn,
     p_sort_order: parsed.values.sortOrder,
     p_is_visible: parsed.values.isVisible,
   });
@@ -64,16 +66,20 @@ export async function updateCategoryAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_update_category", {
+  const { error } = await supabase.rpc("admin_update_category_bilingual", {
     p_category_id: categoryId,
     p_slug: parsed.values.slug,
-    p_name: parsed.values.name,
-    p_description: parsed.values.description,
+    p_zh_name: parsed.values.name,
+    p_zh_description: parsed.values.description,
+    p_en_name: parsed.values.nameEn,
+    p_en_description: parsed.values.descriptionEn,
     p_sort_order: parsed.values.sortOrder,
     p_is_visible: parsed.values.isVisible,
   });
   if (error) return categoryErrorState(error.code);
 
   revalidatePath("/admin/categories");
+  revalidatePath("/en");
+  revalidatePath("/zh");
   return { status: "success", message: "分类已保存。", fieldErrors: {} };
 }

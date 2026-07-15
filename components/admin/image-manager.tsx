@@ -77,6 +77,7 @@ export function ImageManager({
         file,
         previewUrl: URL.createObjectURL(file),
         altText: `${productTitle || "商品"} 图片 ${images.length + index + 1}`,
+        altTextEn: "",
         variantId: "",
         ...dimensions,
       });
@@ -158,6 +159,9 @@ export function ImageManager({
                 <label className="mt-3 block text-sm font-medium">替代文字
                   <input className={`${inputClass} mt-1`} maxLength={300} onChange={(event) => updatePending(index, { altText: event.target.value })} value={image.altText} />
                 </label>
+                <label className="mt-3 block text-sm font-medium">English alt text
+                  <input className={`${inputClass} mt-1`} lang="en" maxLength={300} onChange={(event) => updatePending(index, { altTextEn: event.target.value })} value={image.altTextEn} />
+                </label>
                 <label className="mt-3 block text-sm font-medium">关联规格（可选）
                   <select className={`${inputClass} mt-1`} onChange={(event) => updatePending(index, { variantId: event.target.value })} value={image.variantId}>
                     <option value="">商品通用图</option>
@@ -175,7 +179,7 @@ export function ImageManager({
       </section>
 
       <form action={saveAction} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-        <input name="images" type="hidden" value={JSON.stringify(images.map((image) => ({ id: image.id, altText: image.altText, variantId: image.variantId })))} />
+        <input name="images" type="hidden" value={JSON.stringify(images.map((image) => ({ id: image.id, altText: image.altText, altTextEn: image.altTextEn, variantId: image.variantId })))} />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div><h3 className="text-lg font-semibold">已登记图片</h3><p className="mt-1 text-sm text-slate-600">第一张始终是封面。调整后需保存；删除会立即执行并进行一致性补偿。</p></div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{images.length} / 100</span>
@@ -196,6 +200,10 @@ export function ImageManager({
                 <div className="min-w-0">
                   <label className="block text-sm font-medium">替代文字
                     <input className={`${inputClass} mt-1`} maxLength={300} onChange={(event) => updateImage(index, { altText: event.target.value })} value={image.altText} />
+                  </label>
+                  <label className="mt-3 block text-sm font-medium">English alt text
+                    <input className={`${inputClass} mt-1`} lang="en" maxLength={300} onChange={(event) => updateImage(index, { altTextEn: event.target.value })} value={image.altTextEn} />
+                    <span className="mt-1 block text-xs font-normal text-slate-500">留空时，有图片的商品不会进入英文站。</span>
                   </label>
                   <label className="mt-3 block text-sm font-medium">关联规格（可选）
                     <select className={`${inputClass} mt-1`} onChange={(event) => updateImage(index, { variantId: event.target.value || null })} value={image.variantId ?? ""}>

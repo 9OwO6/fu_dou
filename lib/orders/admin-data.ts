@@ -7,6 +7,7 @@ export type { OrderStatus } from "./status";
 export type AdminOrderSummary = {
   id: string;
   requestNumber: string;
+  requestLocale: "en" | "zh";
   status: OrderStatus;
   customerName: string;
   email: string;
@@ -53,7 +54,7 @@ export async function listAdminOrders(filters: { query: string; status: string }
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("order_requests")
-    .select("id, request_number, status, customer_name, email, fulfillment_method, subtotal_snapshot, created_at")
+    .select("id, request_number, request_locale, status, customer_name, email, fulfillment_method, subtotal_snapshot, created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error("订单请求列表暂时无法加载。");
 
@@ -61,6 +62,7 @@ export async function listAdminOrders(filters: { query: string; status: string }
   return (data ?? []).map((row): AdminOrderSummary => ({
     id: row.id,
     requestNumber: row.request_number,
+    requestLocale: row.request_locale,
     status: row.status as OrderStatus,
     customerName: row.customer_name,
     email: row.email,
@@ -81,7 +83,7 @@ export async function getAdminOrder(orderRequestId: string): Promise<AdminOrderD
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("order_requests")
-    .select("id, request_number, status, customer_name, email, phone, preferred_contact, fulfillment_method, city_or_area, postal_code, wechat_or_other_contact, preferred_time, customer_note, admin_note, subtotal_snapshot, created_at, updated_at, order_request_items(id, product_title_snapshot, variant_label_snapshot, sku_snapshot, unit_price_snapshot, quantity, line_total_snapshot), order_request_emails(id, kind, status, attempt_count, failure_summary, last_attempt_at, sent_at)")
+    .select("id, request_number, request_locale, status, customer_name, email, phone, preferred_contact, fulfillment_method, city_or_area, postal_code, wechat_or_other_contact, preferred_time, customer_note, admin_note, subtotal_snapshot, created_at, updated_at, order_request_items(id, product_title_snapshot, variant_label_snapshot, sku_snapshot, unit_price_snapshot, quantity, line_total_snapshot), order_request_emails(id, kind, status, attempt_count, failure_summary, last_attempt_at, sent_at)")
     .eq("id", orderRequestId)
     .maybeSingle();
   if (error) throw new Error("订单请求详情暂时无法加载。");
@@ -90,6 +92,7 @@ export async function getAdminOrder(orderRequestId: string): Promise<AdminOrderD
   return {
     id: data.id,
     requestNumber: data.request_number,
+    requestLocale: data.request_locale,
     status: data.status as OrderStatus,
     customerName: data.customer_name,
     email: data.email,

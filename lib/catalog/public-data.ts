@@ -37,6 +37,29 @@ type ImageRow = {
   sort_order: number;
 };
 
+type ImageTranslationRow = {
+  image_id: string;
+  alt_text: string;
+};
+
+type OptionRow = {
+  id: string;
+  product_id: string;
+};
+
+type OptionTranslationRow = {
+  option_id: string;
+};
+
+type OptionValueRow = {
+  id: string;
+  option_id: string;
+};
+
+type OptionValueTranslationRow = {
+  option_value_id: string;
+};
+
 type CategoryRow = {
   id: string;
   slug: string;
@@ -192,10 +215,10 @@ async function loadPublicProductRows(locale: AppLocale) {
   const products = (productsResult.data ?? []) as ProductRow[];
   const productIds = products.map((product) => product.id);
   if (productIds.length === 0) {
-    return { products, translations: [], variants: [], images: [], categoryLinks: [] };
+    return { products, translations: [], variants: [], images: [], imageTranslations: [], options: [], optionTranslations: [], optionValues: [], optionValueTranslations: [], categoryLinks: [] };
   }
 
-  const [translationsResult, variantsResult, imagesResult, linksResult] = await Promise.all([
+  const [translationsResult, variantsResult, imagesResult, imageTranslationsResult, optionsResult, optionTranslationsResult, optionValuesResult, optionValueTranslationsResult, linksResult] = await Promise.all([
     supabase
       .from("product_translations")
       .select("product_id, title, short_description, description, seo_title, seo_description")
@@ -212,20 +235,55 @@ async function loadPublicProductRows(locale: AppLocale) {
       .in("product_id", productIds)
       .order("sort_order", { ascending: true }),
     supabase
+      .from("product_image_translations")
+      .select("image_id, alt_text")
+      .eq("locale", locale),
+    supabase
+      .from("product_options")
+      .select("id, product_id")
+      .in("product_id", productIds),
+    supabase
+      .from("product_option_translations")
+      .select("option_id")
+      .eq("locale", locale),
+    supabase
+      .from("product_option_values")
+      .select("id, option_id"),
+    supabase
+      .from("product_option_value_translations")
+      .select("option_value_id")
+      .eq("locale", locale),
+    supabase
       .from("product_categories")
       .select("product_id, category_id, sort_order")
       .in("product_id", productIds)
       .order("sort_order", { ascending: true }),
   ]);
 
-  if (translationsResult.error || variantsResult.error || imagesResult.error || linksResult.error) {
-    throw new Error("公开商品资料暂时无法加载。");
+  if (translationsResult.error || variantsResult.error || imagesResult.error || imageTranslationsResult.error || optionsResult.error || optionTranslationsResult.error || optionValuesResult.error || optionValueTranslationsResult.error || linksResult.error) {
+    const failedQuery = [
+      ["translations", translationsResult.error],
+      ["variants", variantsResult.error],
+      ["images", imagesResult.error],
+      ["imageTranslations", imageTranslationsResult.error],
+      ["options", optionsResult.error],
+      ["optionTranslations", optionTranslationsResult.error],
+      ["optionValues", optionValuesResult.error],
+      ["optionValueTranslations", optionValueTranslationsResult.error],
+      ["links", linksResult.error],
+    ].find(([, error]) => error);
+    throw new Error(`公开商品资料暂时无法加载（${failedQuery?.[0] ?? "unknown"}）。`);
   }
   return {
     products,
     translations: (translationsResult.data ?? []) as TranslationRow[],
     variants: (variantsResult.data ?? []) as VariantRow[],
     images: (imagesResult.data ?? []) as ImageRow[],
+    imageTranslations: (imageTranslationsResult.data ?? []) as ImageTranslationRow[],
+    options: (optionsResult.data ?? []) as OptionRow[],
+    optionTranslations: (optionTranslationsResult.data ?? []) as OptionTranslationRow[],
+    optionValues: (optionValuesResult.data ?? []) as OptionValueRow[],
+    optionValueTranslations: (optionValueTranslationsResult.data ?? []) as OptionValueTranslationRow[],
     categoryLinks: (linksResult.data ?? []) as CategoryLinkRow[],
   };
 }
@@ -234,12 +292,15 @@ export async function listPublicProducts(
   locale: AppLocale,
   filters: CatalogFilters = {},
 ): Promise<PublicProduct[]> {
-  const { products, translations, variants, images, categoryLinks } = await loadPublicProductRows(locale);
+  const { products, translations, variants, images, imageTranslations, options, optionTranslations, optionValues, optionValueTranslations, categoryLinks } = await loadPublicProductRows(locale);
   const [categories, signedUrls] = await Promise.all([
     listPublicCategories(locale),
     signImagePaths(images),
   ]);
   const translationsByProduct = new Map(translations.map((row) => [row.product_id, row]));
+  const imageAltById = new Map(imageTranslations.map((row) => [row.image_id, row.alt_text]));
+  const translatedOptionIds = new Set(optionTranslations.map((row) => row.option_id));
+  const translatedValueIds = new Set(optionValueTranslations.map((row) => row.option_value_id));
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
   const now = Date.now();
 
@@ -247,6 +308,15 @@ export async function listPublicProducts(
     const translation = translationsByProduct.get(product.id);
     const productVariants = variants.filter((variant) => variant.product_id === product.id);
     if (!translation || productVariants.length === 0) return [];
+    const productOptions = options.filter((option) => option.product_id === product.id);
+    const productOptionIds = new Set(productOptions.map((option) => option.id));
+    const productOptionValues = optionValues.filter((value) => productOptionIds.has(value.option_id));
+    const productImages = images.filter((image) => image.product_id === product.id);
+    if (locale === "en" && (
+      productOptions.some((option) => !translatedOptionIds.has(option.id))
+      || productOptionValues.some((value) => !translatedValueIds.has(value.id))
+      || productImages.some((image) => !imageAltById.get(image.id)?.trim())
+    )) return [];
     const mappedVariants = productVariants.map((variant) => ({
       id: variant.id,
       sku: variant.sku,
@@ -275,13 +345,12 @@ export async function listPublicProducts(
       newFrom: product.published_at,
       isFeatured: product.is_featured,
       categories: productCategories,
-      images: images
-        .filter((image) => image.product_id === product.id)
+      images: productImages
         .map((image) => ({
           id: image.id,
           variantId: image.variant_id,
           url: signedUrls.get(image.storage_path) || null,
-          alt: image.alt_text,
+          alt: locale === "en" ? imageAltById.get(image.id)! : image.alt_text,
           sortOrder: image.sort_order,
         })),
       variants: mappedVariants,
@@ -336,15 +405,18 @@ export async function getPublicProduct(locale: AppLocale, slug: string): Promise
   const optionNames = new Map((optionTranslationsResult.data ?? []).map((row) => [row.option_id, row.name]));
   const valueLabels = new Map((valueTranslationsResult.data ?? []).map((row) => [row.option_value_id, row.label]));
   const values = valuesResult.data ?? [];
+  const optionIds = new Set((optionsResult.data ?? []).map((option) => option.id));
+  if ((optionsResult.data ?? []).some((option) => !optionNames.get(option.id))
+    || values.some((value) => optionIds.has(value.option_id) && !valueLabels.get(value.id))) return null;
   const options: PublicProductOption[] = (optionsResult.data ?? []).map((option) => ({
     id: option.id,
-    name: optionNames.get(option.id) ?? "规格",
+    name: optionNames.get(option.id)!,
     sortOrder: option.sort_order,
     values: values
       .filter((value) => value.option_id === option.id)
       .map((value) => ({
         id: value.id,
-        label: valueLabels.get(value.id) ?? "未命名",
+        label: valueLabels.get(value.id)!,
         colorSwatch: value.color_swatch,
         sortOrder: value.sort_order,
       })),

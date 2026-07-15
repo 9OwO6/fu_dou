@@ -2,11 +2,11 @@
 
 import { useFormStatus } from "react-dom";
 
-export function OrderRequestSubmitButton({ blocked }: { blocked: boolean }) {
+export function OrderRequestSubmitButton({ blocked, label, pendingLabel }: { blocked: boolean; label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
     <button className="button-primary order-submit" disabled={pending || blocked} type="submit">
-      {pending ? "正在安全保存请求…" : "提交订单请求"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }

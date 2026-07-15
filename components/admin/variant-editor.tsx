@@ -71,7 +71,8 @@ export function VariantEditor({ productId, initialConfiguration }: { productId: 
     setOptions((current) => [...current, {
       id: crypto.randomUUID(),
       label: "",
-      values: [{ id: crypto.randomUUID(), label: "" }],
+      labelEn: "",
+      values: [{ id: crypto.randomUUID(), label: "", labelEn: "" }],
     }]);
   }
 
@@ -81,13 +82,13 @@ export function VariantEditor({ productId, initialConfiguration }: { productId: 
 
   function addValue(optionIndex: number) {
     const option = options[optionIndex];
-    updateOption(optionIndex, { values: [...option.values, { id: crypto.randomUUID(), label: "" }] });
+    updateOption(optionIndex, { values: [...option.values, { id: crypto.randomUUID(), label: "", labelEn: "" }] });
   }
 
-  function updateValue(optionIndex: number, valueIndex: number, label: string) {
+  function updateValue(optionIndex: number, valueIndex: number, field: "label" | "labelEn", label: string) {
     const option = options[optionIndex];
     updateOption(optionIndex, {
-      values: option.values.map((value, index) => index === valueIndex ? { ...value, label } : value),
+      values: option.values.map((value, index) => index === valueIndex ? { ...value, [field]: label } : value),
     });
   }
 
@@ -130,7 +131,7 @@ export function VariantEditor({ productId, initialConfiguration }: { productId: 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold" id="options-heading">规格名称和值</h2>
-            <p className="mt-1 text-sm text-slate-600">可创建款式、颜色、尺寸等任意中文规格。无可选规格的商品保持这里为空。</p>
+            <p className="mt-1 text-sm text-slate-600">每个规格名称和值同时维护中文与 English。英文缺失时商品不会进入英文站；无可选规格商品保持这里为空。</p>
           </div>
           <button className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600" onClick={addOption} type="button">添加规格</button>
         </div>
@@ -143,24 +144,35 @@ export function VariantEditor({ productId, initialConfiguration }: { productId: 
             {options.map((option, optionIndex) => (
               <fieldset className="rounded-xl border border-slate-200 p-4" key={option.id}>
                 <legend className="px-1 text-sm font-semibold">规格 {optionIndex + 1}</legend>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                  <label className="min-w-0 flex-1 text-sm font-medium">
-                    规格名称
+                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+                  <label className="min-w-0 text-sm font-medium">
+                    中文规格名称
                     <input className={`${inputClass} mt-1`} maxLength={100} onChange={(event) => updateOption(optionIndex, { label: event.target.value })} placeholder="例如：款式" value={option.label} />
                     <FieldError message={state.fieldErrors[`options.${optionIndex}.label`]} />
+                  </label>
+                  <label className="min-w-0 text-sm font-medium">
+                    English option name
+                    <input className={`${inputClass} mt-1`} lang="en" maxLength={100} onChange={(event) => updateOption(optionIndex, { labelEn: event.target.value })} placeholder="For example: Style" value={option.labelEn} />
+                    <FieldError message={state.fieldErrors[`options.${optionIndex}.labelEn`]} />
                   </label>
                   <button className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 sm:mt-6" onClick={() => removeOption(optionIndex)} type="button">删除规格</button>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {option.values.map((value, valueIndex) => (
-                    <label className="text-sm font-medium" key={value.id}>
-                      规格值 {valueIndex + 1}
-                      <span className="mt-1 flex gap-2">
-                        <input className={inputClass} maxLength={100} onChange={(event) => updateValue(optionIndex, valueIndex, event.target.value)} placeholder="例如：猫猫" value={value.label} />
+                    <div className="rounded-xl border border-slate-200 p-3" key={value.id}>
+                      <p className="text-sm font-semibold">规格值 {valueIndex + 1}</p>
+                      <label className="mt-2 block text-sm font-medium">中文值
+                        <input className={`${inputClass} mt-1`} maxLength={100} onChange={(event) => updateValue(optionIndex, valueIndex, "label", event.target.value)} placeholder="例如：猫猫" value={value.label} />
+                        <FieldError message={state.fieldErrors[`options.${optionIndex}.values.${valueIndex}.label`]} />
+                      </label>
+                      <label className="mt-2 block text-sm font-medium">English value
+                        <input className={`${inputClass} mt-1`} lang="en" maxLength={100} onChange={(event) => updateValue(optionIndex, valueIndex, "labelEn", event.target.value)} placeholder="For example: Cat" value={value.labelEn} />
+                        <FieldError message={state.fieldErrors[`options.${optionIndex}.values.${valueIndex}.labelEn`]} />
+                      </label>
+                      <span className="mt-3 flex justify-end">
                         <button aria-label={`删除规格值 ${value.label || valueIndex + 1}`} className="min-h-11 shrink-0 rounded-xl border border-slate-300 px-3 text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600" onClick={() => removeValue(optionIndex, valueIndex)} type="button">删除</button>
                       </span>
-                      <FieldError message={state.fieldErrors[`options.${optionIndex}.values.${valueIndex}.label`]} />
-                    </label>
+                    </div>
                   ))}
                 </div>
                 <FieldError message={state.fieldErrors[`options.${optionIndex}.values`]} />

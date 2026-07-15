@@ -18,7 +18,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Params 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div><Link className="text-sm font-semibold text-sky-800 underline underline-offset-4" href="/admin/orders">← 返回订单请求</Link><h1 className="mt-3 text-3xl font-bold">{order.requestNumber}</h1><p className="mt-2 text-sm text-slate-600">提交于 {new Date(order.createdAt).toLocaleString("zh-CA", { timeZone: "America/Vancouver" })}</p></div>
+        <div><Link className="text-sm font-semibold text-sky-800 underline underline-offset-4" href="/admin/orders">← 返回订单请求</Link><h1 className="mt-3 text-3xl font-bold">{order.requestNumber}</h1><p className="mt-2 text-sm text-slate-600">顾客语言：{order.requestLocale === "en" ? "English" : "中文"} · 提交于 {new Date(order.createdAt).toLocaleString("zh-CA", { timeZone: "America/Vancouver" })}</p></div>
         <span className="rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-900">{orderStatusLabels[order.status]}</span>
       </header>
 

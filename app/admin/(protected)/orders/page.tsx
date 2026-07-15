@@ -41,7 +41,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
               <tbody className="divide-y divide-slate-200">
                 {orders.map((order) => (
                   <tr key={order.id}>
-                    <td className="px-5 py-4"><Link className="font-semibold text-sky-800 underline underline-offset-4" href={`/admin/orders/${order.id}`}>{order.requestNumber}</Link></td>
+                    <td className="px-5 py-4"><Link className="font-semibold text-sky-800 underline underline-offset-4" href={`/admin/orders/${order.id}`}>{order.requestNumber}</Link><span className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{order.requestLocale === "en" ? "English" : "中文"}</span></td>
                     <td className="px-5 py-4"><strong className="block">{order.customerName}</strong><span className="text-slate-500">{order.email}</span></td>
                     <td className="px-5 py-4">{order.fulfillmentMethod === "pickup" ? "自取" : "本地配送"}</td>
                     <td className="px-5 py-4 font-semibold tabular-nums">{cad.format(order.subtotal)}</td>

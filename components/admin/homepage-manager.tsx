@@ -116,6 +116,42 @@ function CommonContent({ section, errors, showCta = false }: { section: Homepage
   );
 }
 
+function EnglishCommonContent({ section, errors, showCta = false }: { section: HomepageSection; errors: Record<string, string>; showCta?: boolean }) {
+  const prefix = `section.${section.sectionType}`;
+  const translation = section.translationEn;
+  return (
+    <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/40 p-4">
+      <p className="text-sm font-semibold text-sky-900">英文展示内容</p>
+      {section.sectionType !== "announcement" ? <TextField error={errors[`${prefix}.headingEn`]} label="英文模块标题" maximum={160} name={`${prefix}.headingEn`} value={translation.heading} /> : null}
+      <TextField error={errors[`${prefix}.bodyEn`]} label={section.sectionType === "announcement" ? "英文公告文字" : "英文模块说明"} maximum={5000} multiline name={`${prefix}.bodyEn`} value={translation.body} />
+      {showCta ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextField error={errors[`${prefix}.ctaLabelEn`]} label="英文按钮文案" maximum={80} name={`${prefix}.ctaLabelEn`} value={translation.ctaLabel} />
+          <label className="text-sm font-medium">英文按钮目标
+            <select className={inputClass} defaultValue={translation.ctaHref} name={`${prefix}.ctaHrefEn`}>
+              <option value="">不显示按钮</option>
+              {controlledCtaTargets.map((target) => <option key={target} value={target}>{ctaLabels[target]}</option>)}
+            </select>
+            <ErrorText error={errors[`${prefix}.ctaHrefEn`]} />
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function BilingualCommonContent({ section, errors, showCta = false }: { section: HomepageSection; errors: Record<string, string>; showCta?: boolean }) {
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+        <p className="text-sm font-semibold text-amber-900">中文展示内容</p>
+        <CommonContent errors={errors} section={section} showCta={showCta} />
+      </div>
+      <EnglishCommonContent errors={errors} section={section} showCta={showCta} />
+    </div>
+  );
+}
+
 function ImageChoice({ section, choices, errors }: { section: HomepageSection; choices: HomepageAdminChoices; errors: Record<string, string> }) {
   const name = `section.${section.sectionType}.imageId`;
   const selected = section.settings.imageId ?? "";
@@ -166,19 +202,19 @@ function SelectionChecklist({
 function SectionEditor({ section, choices, errors }: { section: HomepageSection; choices: HomepageAdminChoices; errors: Record<string, string> }) {
   const prefix = `section.${section.sectionType}`;
   if (section.sectionType === "announcement") {
-    return <SectionFrame errors={errors} section={section}><CommonContent errors={errors} section={section} /></SectionFrame>;
+    return <SectionFrame errors={errors} section={section}><BilingualCommonContent errors={errors} section={section} /></SectionFrame>;
   }
   if (section.sectionType === "hero" || section.sectionType === "brand_story") {
     return (
       <SectionFrame errors={errors} section={section}>
-        <div className="grid gap-5"><CommonContent errors={errors} section={section} showCta={section.sectionType === "hero"} /><ImageChoice choices={choices} errors={errors} section={section} /></div>
+        <div className="grid gap-5"><BilingualCommonContent errors={errors} section={section} showCta={section.sectionType === "hero"} /><ImageChoice choices={choices} errors={errors} section={section} /></div>
       </SectionFrame>
     );
   }
   if (section.sectionType === "featured_categories") {
     return (
       <SectionFrame errors={errors} section={section}>
-        <div className="grid gap-5"><CommonContent errors={errors} section={section} /><div><p className="mb-2 text-sm font-medium">选择热门分类（最多 6 个）</p><SelectionChecklist error={errors[`${prefix}.categoryIds`]} name={`${prefix}.categoryIds`} options={choices.categories.map((category) => ({ id: category.id, label: category.name, note: category.isVisible ? "公开" : "已隐藏，前台会安全跳过" }))} values={section.settings.categoryIds ?? []} /></div></div>
+        <div className="grid gap-5"><BilingualCommonContent errors={errors} section={section} /><div><p className="mb-2 text-sm font-medium">选择热门分类（最多 6 个）</p><SelectionChecklist error={errors[`${prefix}.categoryIds`]} name={`${prefix}.categoryIds`} options={choices.categories.map((category) => ({ id: category.id, label: category.name, note: category.isVisible ? "公开" : "已隐藏，前台会安全跳过" }))} values={section.settings.categoryIds ?? []} /></div></div>
       </SectionFrame>
     );
   }
@@ -186,7 +222,7 @@ function SectionEditor({ section, choices, errors }: { section: HomepageSection;
     return (
       <SectionFrame errors={errors} section={section}>
         <div className="grid gap-5">
-          <CommonContent errors={errors} section={section} showCta />
+          <BilingualCommonContent errors={errors} section={section} showCta />
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-sm font-medium">选品方式
               <select className={inputClass} defaultValue={section.settings.selectionMode ?? "automatic"} name={`${prefix}.selectionMode`}>
@@ -205,21 +241,51 @@ function SectionEditor({ section, choices, errors }: { section: HomepageSection;
   }
   if (section.sectionType === "fulfillment") {
     const content = section.translation.content;
+    const contentEn = section.translationEn.content;
     return (
       <SectionFrame errors={errors} section={section}>
-        <div className="grid gap-5"><CommonContent errors={errors} section={section} /><div className="grid gap-4 md:grid-cols-2"><TextField error={errors[`${prefix}.pickupTitle`]} label="自取标题" maximum={120} name={`${prefix}.pickupTitle`} value={content.pickupTitle ?? ""} /><TextField error={errors[`${prefix}.deliveryTitle`]} label="配送标题" maximum={120} name={`${prefix}.deliveryTitle`} value={content.deliveryTitle ?? ""} /><TextField error={errors[`${prefix}.pickupBody`]} label="自取说明" maximum={2000} multiline name={`${prefix}.pickupBody`} value={content.pickupBody ?? ""} /><TextField error={errors[`${prefix}.deliveryBody`]} label="配送说明" maximum={2000} multiline name={`${prefix}.deliveryBody`} value={content.deliveryBody ?? ""} /></div></div>
+        <div className="grid gap-5">
+          <BilingualCommonContent errors={errors} section={section} />
+          <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4 md:grid-cols-2">
+            <p className="text-sm font-semibold text-amber-900 md:col-span-2">中文履约内容</p>
+            <TextField error={errors[`${prefix}.pickupTitle`]} label="自取标题" maximum={120} name={`${prefix}.pickupTitle`} value={content.pickupTitle ?? ""} />
+            <TextField error={errors[`${prefix}.deliveryTitle`]} label="配送标题" maximum={120} name={`${prefix}.deliveryTitle`} value={content.deliveryTitle ?? ""} />
+            <TextField error={errors[`${prefix}.pickupBody`]} label="自取说明" maximum={2000} multiline name={`${prefix}.pickupBody`} value={content.pickupBody ?? ""} />
+            <TextField error={errors[`${prefix}.deliveryBody`]} label="配送说明" maximum={2000} multiline name={`${prefix}.deliveryBody`} value={content.deliveryBody ?? ""} />
+          </div>
+          <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/40 p-4 md:grid-cols-2">
+            <p className="text-sm font-semibold text-sky-900 md:col-span-2">英文履约内容</p>
+            <TextField error={errors[`${prefix}.pickupTitleEn`]} label="英文自取标题" maximum={120} name={`${prefix}.pickupTitleEn`} value={contentEn.pickupTitle ?? ""} />
+            <TextField error={errors[`${prefix}.deliveryTitleEn`]} label="英文配送标题" maximum={120} name={`${prefix}.deliveryTitleEn`} value={contentEn.deliveryTitle ?? ""} />
+            <TextField error={errors[`${prefix}.pickupBodyEn`]} label="英文自取说明" maximum={2000} multiline name={`${prefix}.pickupBodyEn`} value={contentEn.pickupBody ?? ""} />
+            <TextField error={errors[`${prefix}.deliveryBodyEn`]} label="英文配送说明" maximum={2000} multiline name={`${prefix}.deliveryBodyEn`} value={contentEn.deliveryBody ?? ""} />
+          </div>
+        </div>
       </SectionFrame>
     );
   }
   if (section.sectionType === "faq") {
     const items = section.translation.content.items ?? [];
+    const itemsEn = section.translationEn.content.items ?? [];
     return (
       <SectionFrame errors={errors} section={section}>
-        <div className="grid gap-5"><CommonContent errors={errors} section={section} /><div className="grid gap-4">{Array.from({ length: 5 }, (_, index) => <div className="grid gap-3 rounded-xl border border-slate-200 p-4" key={index}><p className="text-sm font-semibold">问题 {index + 1}</p><TextField error={errors[`${prefix}.faq.${index}.question`]} label="问题" maximum={200} name={`${prefix}.faq.${index}.question`} value={items[index]?.question ?? ""} /><TextField error={errors[`${prefix}.faq.${index}.answer`]} label="答案" maximum={2000} multiline name={`${prefix}.faq.${index}.answer`} value={items[index]?.answer ?? ""} /></div>)}</div><ErrorText error={errors[`${prefix}.faq`]} /></div>
+        <div className="grid gap-5">
+          <BilingualCommonContent errors={errors} section={section} />
+          <div className="grid gap-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+            <p className="text-sm font-semibold text-amber-900">中文常见问题</p>
+            {Array.from({ length: 5 }, (_, index) => <div className="grid gap-3 rounded-xl border border-amber-200 bg-white p-4" key={index}><p className="text-sm font-semibold">问题 {index + 1}</p><TextField error={errors[`${prefix}.faq.${index}.question`]} label="问题" maximum={200} name={`${prefix}.faq.${index}.question`} value={items[index]?.question ?? ""} /><TextField error={errors[`${prefix}.faq.${index}.answer`]} label="答案" maximum={2000} multiline name={`${prefix}.faq.${index}.answer`} value={items[index]?.answer ?? ""} /></div>)}
+            <ErrorText error={errors[`${prefix}.faq`]} />
+          </div>
+          <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/40 p-4">
+            <p className="text-sm font-semibold text-sky-900">英文常见问题</p>
+            {Array.from({ length: 5 }, (_, index) => <div className="grid gap-3 rounded-xl border border-sky-200 bg-white p-4" key={index}><p className="text-sm font-semibold">Question {index + 1}</p><TextField error={errors[`${prefix}.faqEn.${index}.question`]} label="英文问题" maximum={200} name={`${prefix}.faqEn.${index}.question`} value={itemsEn[index]?.question ?? ""} /><TextField error={errors[`${prefix}.faqEn.${index}.answer`]} label="英文答案" maximum={2000} multiline name={`${prefix}.faqEn.${index}.answer`} value={itemsEn[index]?.answer ?? ""} /></div>)}
+            <ErrorText error={errors[`${prefix}.faqEn`]} />
+          </div>
+        </div>
       </SectionFrame>
     );
   }
-  return <SectionFrame errors={errors} section={section}><CommonContent errors={errors} section={section} showCta /></SectionFrame>;
+  return <SectionFrame errors={errors} section={section}><BilingualCommonContent errors={errors} section={section} showCta /></SectionFrame>;
 }
 
 function SafePreview({ configuration }: { configuration: HomepageConfiguration }) {
@@ -248,7 +314,10 @@ export function HomepageManager({ initialConfiguration, choices }: { initialConf
             <TextField error={state.fieldErrors["site.contactPhone"]} label="公开联系电话（可选）" maximum={40} name="site.contactPhone" value={initialConfiguration.siteSettings.contactPhone} />
             <label className="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold"><input className="size-4 accent-sky-700" defaultChecked={initialConfiguration.siteSettings.pickupEnabled} name="site.pickupEnabled" type="checkbox" />开放自取说明</label>
             <label className="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold"><input className="size-4 accent-sky-700" defaultChecked={initialConfiguration.siteSettings.localDeliveryEnabled} name="site.localDeliveryEnabled" type="checkbox" />开放本地配送说明</label>
-            <div className="md:col-span-2"><TextField error={state.fieldErrors["site.serviceAreaDescription"]} label="服务区域补充说明" maximum={1000} multiline name="site.serviceAreaDescription" value={initialConfiguration.siteSettings.serviceAreaDescription} /></div>
+            <div className="md:col-span-2 grid gap-4 rounded-xl border border-slate-200 p-4">
+              <TextField error={state.fieldErrors["site.serviceAreaDescription"]} label="中文服务区域补充说明" maximum={1000} multiline name="site.serviceAreaDescription" value={initialConfiguration.siteSettings.serviceAreaDescription} />
+              <TextField error={state.fieldErrors["site.serviceAreaDescriptionEn"]} label="英文服务区域补充说明" maximum={1000} multiline name="site.serviceAreaDescriptionEn" value={initialConfiguration.siteSettings.serviceAreaDescriptionEn} />
+            </div>
           </div>
         </fieldset>
         {sections.map((section) => <SectionEditor choices={choices} errors={state.fieldErrors} key={section.sectionType} section={section} />)}

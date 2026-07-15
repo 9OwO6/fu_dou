@@ -1,4 +1,5 @@
 import type { AppLocale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/get-messages";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CartValidationInput } from "./schema";
 
@@ -44,6 +45,7 @@ export async function validateCartItems(
 ): Promise<ValidatedCartItem[]> {
   if (items.length === 0) return [];
   const supabase = await createSupabaseServerClient();
+  const messages = getMessages(locale).public.cart;
   const ids = items.map((item) => item.variantId);
   const variantsResult = await supabase
     .from("product_variants")
@@ -57,13 +59,14 @@ export async function validateCartItems(
     return items.map((item) => ({ ...item, status: "unavailable", priceChanged: false }));
   }
 
-  const [productsResult, translationsResult, linksResult, imagesResult] = await Promise.all([
+  const [productsResult, translationsResult, linksResult, imagesResult, imageTranslationsResult] = await Promise.all([
     supabase.from("products").select("id, slug").in("id", productIds),
     supabase.from("product_translations").select("product_id, title").eq("locale", locale).in("product_id", productIds),
     supabase.from("variant_option_values").select("variant_id, option_value_id").in("variant_id", ids),
-    supabase.from("product_images").select("product_id, variant_id, storage_path, alt_text, sort_order").in("product_id", productIds).order("sort_order"),
+    supabase.from("product_images").select("id, product_id, variant_id, storage_path, alt_text, sort_order").in("product_id", productIds).order("sort_order"),
+    supabase.from("product_image_translations").select("image_id, alt_text").eq("locale", locale),
   ]);
-  if (productsResult.error || translationsResult.error || linksResult.error || imagesResult.error) {
+  if (productsResult.error || translationsResult.error || linksResult.error || imagesResult.error || imageTranslationsResult.error) {
     throw new Error("购物车商品暂时无法重新校验。");
   }
 
@@ -96,6 +99,7 @@ export async function validateCartItems(
   const nameByOption = new Map((optionTranslationsResult.data ?? []).map((row) => [row.option_id, row.name]));
   const sortByOption = new Map((optionsResult.data ?? []).map((row) => [row.id, row.sort_order]));
   const images = imagesResult.data ?? [];
+  const imageAltById = new Map((imageTranslationsResult.data ?? []).map((row) => [row.image_id, row.alt_text]));
   const selectedImages = variants.flatMap((variant) => {
     const image = images.find((row) => row.variant_id === variant.id)
       ?? images.find((row) => row.product_id === variant.product_id && row.variant_id === null);
@@ -106,7 +110,7 @@ export async function validateCartItems(
     : { data: [], error: null };
   const imageByVariant = new Map(selectedImages.map((image, index) => [image.variantId, {
     url: signedResult.error ? null : signedResult.data?.[index]?.signedUrl ?? null,
-    alt: image.alt_text,
+    alt: locale === "en" ? imageAltById.get(image.id) ?? "" : image.alt_text,
   }]));
   const variantById = new Map(variants.map((variant) => [variant.id, variant]));
   const now = Date.now();
@@ -118,15 +122,23 @@ export async function validateCartItems(
     const title = titleByProduct.get(variant.product_id);
     if (!product || !title) return { ...item, status: "unavailable", priceChanged: false };
 
-    const variantLabel = (linksByVariant.get(variant.id) ?? [])
+    const linkedValueIds = linksByVariant.get(variant.id) ?? [];
+    const hasMissingTranslation = linkedValueIds.some((valueId) => {
+      const value = valuesById.get(valueId);
+      return !value || !labelByValue.get(valueId) || !nameByOption.get(value.option_id);
+    });
+    const image = imageByVariant.get(variant.id);
+    if (locale === "en" && (hasMissingTranslation || (image && !image.alt))) {
+      return { ...item, status: "unavailable", priceChanged: false };
+    }
+    const variantLabel = linkedValueIds
       .map((valueId) => valuesById.get(valueId))
       .filter((value): value is NonNullable<typeof value> => Boolean(value))
       .sort((a, b) => (sortByOption.get(a.option_id) ?? 0) - (sortByOption.get(b.option_id) ?? 0) || a.sort_order - b.sort_order)
-      .map((value) => `${nameByOption.get(value.option_id) ?? "规格"}：${labelByValue.get(value.id) ?? "未命名"}`)
-      .join(" / ") || "默认规格";
+      .map((value) => `${nameByOption.get(value.option_id)}: ${labelByValue.get(value.id)}`)
+      .join(" / ") || messages.defaultVariant;
     const unitPriceCad = Number(variant.price_cad);
     const onSale = saleIsActive(variant, now);
-    const image = imageByVariant.get(variant.id);
     return {
       variantId: item.variantId,
       quantity: item.quantity,

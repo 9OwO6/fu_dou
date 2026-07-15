@@ -8,6 +8,7 @@ import {
   type HomepageSectionType,
   type HomepageTranslationContent,
 } from "./schema";
+import type { AppLocale } from "@/lib/i18n/config";
 
 type SectionRow = {
   id: string;
@@ -31,6 +32,10 @@ type SiteSettingsRow = {
   pickup_enabled: boolean;
   local_delivery_enabled: boolean;
   service_area_description: string | null;
+  site_setting_translations: Array<{
+    locale: string;
+    service_area_description: string | null;
+  }>;
 };
 
 export type HomepageChoiceProduct = {
@@ -52,7 +57,24 @@ export type HomepageAdminChoices = {
   images: HomepageChoiceImage[];
 };
 
-const fallbackSections: HomepageSection[] = [
+const fallbackEnglishTranslations: Record<HomepageSectionType, HomepageSection["translation"]> = {
+  announcement: { heading: "", body: "Pickup and local delivery around Vancouver · Final arrangements are confirmed by the owner", ctaLabel: "", ctaHref: "", content: {} },
+  hero: { heading: "A little more joy for everyday life.", body: "Discover cheerful home goods, tableware, and gifts. All prices are in CAD, with variant-level stock shown on each product page.", ctaLabel: "Shop new arrivals", ctaHref: "/collections/new", content: {} },
+  featured_categories: { heading: "Start with a category you love", body: "Browse cups, tableware, and cheerful home accents at your own pace.", ctaLabel: "", ctaHref: "", content: {} },
+  new_products: { heading: "New arrivals", body: "Meet the newest finds at Happy Beans.", ctaLabel: "", ctaHref: "/collections/new", content: {} },
+  featured_products: { heading: "This week's picks", body: "Sweet everyday pieces for your home or someone special.", ctaLabel: "View all featured items", ctaHref: "/collections/featured", content: {} },
+  sale_products: { heading: "Lovely little deals", body: "Current and original CAD prices are shown clearly for every eligible variant.", ctaLabel: "View sale items", ctaHref: "/collections/sale", content: {} },
+  brand_story: { heading: "About Happy Beans", body: "We gather warm, cheerful home and gift items that feel cute without feeling childish.", ctaLabel: "", ctaHref: "", content: {} },
+  fulfillment: { heading: "Pickup and local delivery", body: "Our first version focuses on pickup and limited local delivery around Vancouver.", ctaLabel: "", ctaHref: "", content: { pickupTitle: "Local pickup", pickupBody: "The owner will confirm the pickup location and available time after receiving your request.", deliveryTitle: "Limited local delivery", deliveryBody: "Share your area and postal code, and the owner will confirm availability and any fees." } },
+  faq: { heading: "Frequently asked questions", body: "A few helpful details before you send an order request.", ctaLabel: "", ctaHref: "", content: { items: [
+    { question: "What currency are the prices in?", answer: "All public prices are in Canadian dollars (CAD)." },
+    { question: "Do all colours and sizes have the same stock?", answer: "Not necessarily. Each exact variant has its own price and stock." },
+    { question: "Can I pay online?", answer: "Online payment is not available. Submit an order request and the owner will contact you to confirm the details." },
+  ] } },
+  contact_cta: { heading: "Looking for something cheerful?", body: "Browse all products or contact us with the kind of item you have in mind.", ctaLabel: "Start browsing", ctaHref: "/products", content: {} },
+};
+
+const fallbackSectionBase: Array<Omit<HomepageSection, "translationEn">> = [
   { sectionType: "announcement", isEnabled: true, sortOrder: 5, settings: {}, translation: { heading: "", body: "温哥华周边自取与本地配送 · 具体安排由店主确认", ctaLabel: "", ctaHref: "", content: {} } },
   { sectionType: "hero", isEnabled: true, sortOrder: 10, settings: { imageId: null }, translation: { heading: "把一点可爱和轻松，带进每天的生活。", body: "挑选适合日常、家居和送礼的小物。所有价格均为 CAD，规格库存以商品详情为准。", ctaLabel: "看看新品", ctaHref: "/collections/new", content: {} } },
   { sectionType: "featured_categories", isEnabled: true, sortOrder: 20, settings: { categoryIds: [] }, translation: { heading: "从喜欢的分类开始", body: "杯具、餐具和可爱家居小物，按真实商品慢慢补齐。", ctaLabel: "", ctaHref: "", content: {} } },
@@ -69,6 +91,11 @@ const fallbackSections: HomepageSection[] = [
   { sectionType: "contact_cta", isEnabled: true, sortOrder: 90, settings: {}, translation: { heading: "有想找的可爱小物吗？", body: "可以先从全部商品开始逛，也可以通过下方联系方式告诉我们。", ctaLabel: "开始逛逛", ctaHref: "/products", content: {} } },
 ];
 
+const fallbackSections: HomepageSection[] = fallbackSectionBase.map((section) => ({
+  ...section,
+  translationEn: fallbackEnglishTranslations[section.sectionType],
+}));
+
 const fallbackConfiguration: HomepageConfiguration = {
   sections: fallbackSections,
   siteSettings: {
@@ -77,12 +104,14 @@ const fallbackConfiguration: HomepageConfiguration = {
     pickupEnabled: true,
     localDeliveryEnabled: true,
     serviceAreaDescription: "",
+    serviceAreaDescriptionEn: "Pickup and local delivery are available in Vancouver and nearby areas. Final availability is confirmed by the owner.",
   },
 };
 
 function mapConfiguration(rows: SectionRow[], site: SiteSettingsRow | null, fillMissing: boolean): HomepageConfiguration {
   const sections = rows.flatMap((row): HomepageSection[] => {
     const translation = row.homepage_section_translations.find((item) => item.locale === "zh");
+    const english = row.homepage_section_translations.find((item) => item.locale === "en");
     if (!translation) return [];
     return [{
       id: row.id,
@@ -97,6 +126,13 @@ function mapConfiguration(rows: SectionRow[], site: SiteSettingsRow | null, fill
         ctaHref: translation.cta_href ?? "",
         content: translation.content_json ?? {},
       },
+      translationEn: english ? {
+        heading: english.heading ?? "",
+        body: english.body ?? "",
+        ctaLabel: english.cta_label ?? "",
+        ctaHref: english.cta_href ?? "",
+        content: english.content_json ?? {},
+      } : fallbackEnglishTranslations[row.section_type],
     }];
   });
   const byType = new Map(sections.map((section) => [section.sectionType, section]));
@@ -111,6 +147,7 @@ function mapConfiguration(rows: SectionRow[], site: SiteSettingsRow | null, fill
       pickupEnabled: site?.pickup_enabled ?? true,
       localDeliveryEnabled: site?.local_delivery_enabled ?? false,
       serviceAreaDescription: site?.service_area_description ?? "",
+      serviceAreaDescriptionEn: site?.site_setting_translations.find((translation) => translation.locale === "en")?.service_area_description ?? "",
     },
   };
 }
@@ -126,7 +163,7 @@ async function loadConfiguration(includeDisabled: boolean) {
     sectionsRequest,
     supabase
       .from("site_settings")
-      .select("contact_email, contact_phone, pickup_enabled, local_delivery_enabled, service_area_description")
+      .select("contact_email, contact_phone, pickup_enabled, local_delivery_enabled, service_area_description, site_setting_translations(locale, service_area_description)")
       .eq("id", true)
       .maybeSingle(),
   ]);
@@ -134,12 +171,33 @@ async function loadConfiguration(includeDisabled: boolean) {
   return mapConfiguration((sectionsResult.data ?? []) as SectionRow[], siteResult.data as SiteSettingsRow | null, includeDisabled);
 }
 
-export async function getPublicHomepageConfiguration() {
+export async function getPublicHomepageConfiguration(locale: AppLocale) {
   try {
     const configuration = await loadConfiguration(false);
-    return { ...configuration, sections: configuration.sections.filter((section) => section.isEnabled).sort((a, b) => a.sortOrder - b.sortOrder) };
+    return {
+      ...configuration,
+      sections: configuration.sections
+        .filter((section) => section.isEnabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((section) => ({ ...section, translation: locale === "en" ? section.translationEn : section.translation })),
+      siteSettings: {
+        ...configuration.siteSettings,
+        serviceAreaDescription: locale === "en"
+          ? configuration.siteSettings.serviceAreaDescriptionEn
+          : configuration.siteSettings.serviceAreaDescription,
+      },
+    };
   } catch {
-    return fallbackConfiguration;
+    return {
+      ...fallbackConfiguration,
+      sections: fallbackConfiguration.sections.map((section) => ({ ...section, translation: locale === "en" ? section.translationEn : section.translation })),
+      siteSettings: {
+        ...fallbackConfiguration.siteSettings,
+        serviceAreaDescription: locale === "en"
+          ? fallbackConfiguration.siteSettings.serviceAreaDescriptionEn
+          : fallbackConfiguration.siteSettings.serviceAreaDescription,
+      },
+    };
   }
 }
 

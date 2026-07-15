@@ -7,6 +7,11 @@ export type ProductFormValues = {
   description: string;
   seoTitle: string;
   seoDescription: string;
+  titleEn: string;
+  shortDescriptionEn: string;
+  descriptionEn: string;
+  seoTitleEn: string;
+  seoDescriptionEn: string;
 };
 
 export type ProductField = keyof ProductFormValues;
@@ -15,11 +20,13 @@ export type CategoryFormValues = {
   slug: string;
   name: string;
   description: string;
+  nameEn: string;
+  descriptionEn: string;
   sortOrder: number;
   isVisible: boolean;
 };
 
-export type CategoryField = "slug" | "name" | "description" | "sortOrder";
+export type CategoryField = "slug" | "name" | "description" | "nameEn" | "descriptionEn" | "sortOrder";
 
 export type FormResult<TValues, TField extends string> =
   | { success: true; values: TValues }
@@ -49,6 +56,11 @@ export function parseProductForm(formData: FormData): FormResult<ProductFormValu
     description: text(formData, "description"),
     seoTitle: text(formData, "seoTitle"),
     seoDescription: text(formData, "seoDescription"),
+    titleEn: text(formData, "titleEn"),
+    shortDescriptionEn: text(formData, "shortDescriptionEn"),
+    descriptionEn: text(formData, "descriptionEn"),
+    seoTitleEn: text(formData, "seoTitleEn"),
+    seoDescriptionEn: text(formData, "seoDescriptionEn"),
   };
   const fieldErrors: Partial<Record<ProductField, string>> = {};
 
@@ -64,10 +76,23 @@ export function parseProductForm(formData: FormData): FormResult<ProductFormValu
     ["description", 10_000, "商品描述不能超过 10,000 个字符。"],
     ["seoTitle", 70, "SEO 标题不能超过 70 个字符。"],
     ["seoDescription", 160, "SEO 描述不能超过 160 个字符。"],
+    ["titleEn", 200, "英文标题不能超过 200 个字符。"],
+    ["shortDescriptionEn", 300, "英文简短描述不能超过 300 个字符。"],
+    ["descriptionEn", 10_000, "英文商品描述不能超过 10,000 个字符。"],
+    ["seoTitleEn", 70, "英文 SEO 标题不能超过 70 个字符。"],
+    ["seoDescriptionEn", 160, "英文 SEO 描述不能超过 160 个字符。"],
   ];
   for (const [field, maximum, message] of optionalChecks) {
     const error = validateOptionalLength(values[field], maximum, message);
     if (error) fieldErrors[field] = error;
+  }
+  const hasEnglishContent = values.titleEn
+    || values.shortDescriptionEn
+    || values.descriptionEn
+    || values.seoTitleEn
+    || values.seoDescriptionEn;
+  if (hasEnglishContent && !values.titleEn) {
+    fieldErrors.titleEn = "填写任意英文内容时，英文标题为必填。";
   }
 
   return Object.keys(fieldErrors).length > 0
@@ -81,6 +106,8 @@ export function parseCategoryForm(formData: FormData): FormResult<CategoryFormVa
     slug: text(formData, "slug").toLowerCase(),
     name: text(formData, "name"),
     description: text(formData, "description"),
+    nameEn: text(formData, "nameEn"),
+    descriptionEn: text(formData, "descriptionEn"),
     sortOrder: Number(rawSortOrder),
     isVisible: formData.get("isVisible") === "on",
   };
@@ -94,6 +121,15 @@ export function parseCategoryForm(formData: FormData): FormResult<CategoryFormVa
   }
   if (values.description.length > 2_000) {
     fieldErrors.description = "分类描述不能超过 2,000 个字符。";
+  }
+  if (values.nameEn.length > 160) {
+    fieldErrors.nameEn = "英文分类名称不能超过 160 个字符。";
+  }
+  if (values.descriptionEn.length > 2_000) {
+    fieldErrors.descriptionEn = "英文分类描述不能超过 2,000 个字符。";
+  }
+  if (values.descriptionEn && !values.nameEn) {
+    fieldErrors.nameEn = "填写英文分类描述时，英文分类名称为必填。";
   }
   if (!Number.isInteger(values.sortOrder) || values.sortOrder < 0 || values.sortOrder > 99_999) {
     fieldErrors.sortOrder = "排序必须是 0 到 99,999 之间的整数。";

@@ -7,11 +7,12 @@ import { getMessages } from "@/lib/i18n/get-messages";
 
 type Params = Promise<{ locale: string }>;
 
-export const metadata: Metadata = {
-  title: "购物车",
-  description: "查看和调整 Happy Beans 福豆游客购物车。",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const messages = getMessages(locale).public.cart;
+  return { title: messages.title, description: messages.intro, robots: { index: false, follow: false } };
+}
 
 export default async function CartRoute({ params }: { params: Params }) {
   const { locale } = await params;

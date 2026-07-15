@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
 import logo from "@/assets/brand/happy-beans-logo-primary.jpg";
 import { CartLink } from "@/components/cart/cart-link";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import type { AppLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/get-messages";
 
@@ -30,8 +32,8 @@ export function StoreHeader({ locale, announcement }: { locale: AppLocale; annou
       <header className="store-header">
         <div className="store-container flex h-full items-center justify-between gap-4">
           <Link aria-label={messages.homeLabel} className="brand-link" href={base}>
-            <Image alt="Happy Beans 福豆" className="brand-logo" priority src={logo} />
-            <span className="brand-name">福豆</span>
+            <Image alt={locale === "en" ? "Happy Beans" : "Happy Beans 福豆"} className="brand-logo" priority src={logo} />
+            <span className="brand-name">{locale === "en" ? "Happy Beans" : "福豆"}</span>
           </Link>
           <nav aria-label={messages.navLabel} className="hidden items-center gap-7 lg:flex">
             {navItems.map(([label, href]) => (
@@ -44,7 +46,10 @@ export function StoreHeader({ locale, announcement }: { locale: AppLocale; annou
             <button aria-label={messages.search} type="submit"><SearchIcon /></button>
           </form>
           <div className="header-actions">
-            <CartLink href={`${base}/cart`} label={messages.cart} />
+            <Suspense fallback={<span className="nav-link">{locale === "en" ? "中文" : "English"}</span>}>
+              <LanguageSwitcher label={messages.switchLanguage} locale={locale} />
+            </Suspense>
+            <CartLink countLabel={messages.cartCount} href={`${base}/cart`} label={messages.cart} />
             <details className="mobile-menu lg:hidden">
               <summary aria-label={messages.openMenu}>
                 <span aria-hidden="true" className="menu-lines" />
@@ -57,6 +62,9 @@ export function StoreHeader({ locale, announcement }: { locale: AppLocale; annou
                 </form>
                 <nav aria-label={messages.mobileNavLabel}>
                   {navItems.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
+                  <Suspense fallback={<span>{locale === "en" ? "中文" : "English"}</span>}>
+                    <LanguageSwitcher label={messages.switchLanguage} locale={locale} />
+                  </Suspense>
                   <Link href={`${base}/cart`}>{messages.cart}</Link>
                 </nav>
               </div>

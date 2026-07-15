@@ -5,6 +5,7 @@ import { isSupportedLocale, supportedLocales } from "@/lib/i18n/config";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { StoreFooter } from "@/components/layout/store-footer";
 import { StoreHeader } from "@/components/layout/store-header";
+import { DocumentLanguage } from "@/components/layout/document-language";
 import { getPublicHomepageConfiguration } from "@/lib/homepage/data";
 
 type LocaleLayoutProps = Readonly<{
@@ -22,11 +23,12 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   if (!isSupportedLocale(locale)) {
     notFound();
   }
-  const homepage = await getPublicHomepageConfiguration();
+  const homepage = await getPublicHomepageConfiguration(locale);
   const announcement = homepage.sections.find((section) => section.sectionType === "announcement");
 
   return (
     <CartProvider>
+      <DocumentLanguage locale={locale} />
       <div className="store-shell">
         <StoreHeader announcement={announcement?.translation.body ?? ""} locale={locale} />
         {children}

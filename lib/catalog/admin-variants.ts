@@ -23,6 +23,7 @@ export async function getAdminVariantConfiguration(productId: string): Promise<V
 
   const options = (optionsResult.data ?? []).map((option) => {
     const translation = (option.product_option_translations as Translation[]).find((item) => item.locale === "zh");
+    const english = (option.product_option_translations as Translation[]).find((item) => item.locale === "en");
     const rawValues = option.product_option_values as Array<{
       id: string;
       sort_order: number;
@@ -31,11 +32,13 @@ export async function getAdminVariantConfiguration(productId: string): Promise<V
     return {
       id: option.id,
       label: translation?.name ?? "",
+      labelEn: english?.name ?? "",
       values: [...rawValues]
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((item) => ({
           id: item.id,
           label: item.product_option_value_translations.find((translationItem) => translationItem.locale === "zh")?.label ?? "",
+          labelEn: item.product_option_value_translations.find((translationItem) => translationItem.locale === "en")?.label ?? "",
         })),
     };
   });

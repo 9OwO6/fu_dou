@@ -26,15 +26,26 @@ function CategoryFields({ category, state, prefix }: { category?: AdminCategory;
         <input aria-describedby={state.fieldErrors.name ? `${prefix}-name-error` : undefined} aria-invalid={Boolean(state.fieldErrors.name)} className={inputClass} defaultValue={category?.name} id={`${prefix}-name`} maxLength={160} name="name" required />
         <ErrorText id={`${prefix}-name-error`}>{state.fieldErrors.name}</ErrorText>
       </label>
+      <label className="font-medium" htmlFor={`${prefix}-name-en`}>
+        English name
+        <input aria-describedby={state.fieldErrors.nameEn ? `${prefix}-name-en-error` : undefined} aria-invalid={Boolean(state.fieldErrors.nameEn)} className={inputClass} defaultValue={category?.nameEn} id={`${prefix}-name-en`} lang="en" maxLength={160} name="nameEn" />
+        <span className="mt-1 block text-sm font-normal text-slate-500">留空时，此分类不会出现在英文站。</span>
+        <ErrorText id={`${prefix}-name-en-error`}>{state.fieldErrors.nameEn}</ErrorText>
+      </label>
       <label className="font-medium" htmlFor={`${prefix}-slug`}>
         网址标识
         <input aria-describedby={state.fieldErrors.slug ? `${prefix}-slug-error` : undefined} aria-invalid={Boolean(state.fieldErrors.slug)} autoCapitalize="none" className={inputClass} defaultValue={category?.slug} id={`${prefix}-slug`} maxLength={160} name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required />
         <ErrorText id={`${prefix}-slug-error`}>{state.fieldErrors.slug}</ErrorText>
       </label>
-      <label className="font-medium md:col-span-2" htmlFor={`${prefix}-description`}>
-        分类描述
+      <label className="font-medium" htmlFor={`${prefix}-description`}>
+        中文分类描述
         <textarea aria-describedby={state.fieldErrors.description ? `${prefix}-description-error` : undefined} aria-invalid={Boolean(state.fieldErrors.description)} className={inputClass} defaultValue={category?.description} id={`${prefix}-description`} maxLength={2000} name="description" rows={3} />
         <ErrorText id={`${prefix}-description-error`}>{state.fieldErrors.description}</ErrorText>
+      </label>
+      <label className="font-medium" htmlFor={`${prefix}-description-en`}>
+        English description
+        <textarea aria-describedby={state.fieldErrors.descriptionEn ? `${prefix}-description-en-error` : undefined} aria-invalid={Boolean(state.fieldErrors.descriptionEn)} className={inputClass} defaultValue={category?.descriptionEn} id={`${prefix}-description-en`} lang="en" maxLength={2000} name="descriptionEn" rows={3} />
+        <ErrorText id={`${prefix}-description-en-error`}>{state.fieldErrors.descriptionEn}</ErrorText>
       </label>
       <label className="font-medium" htmlFor={`${prefix}-sort-order`}>
         排序值
@@ -62,6 +73,9 @@ function CategoryEditor({ category }: { category: AdminCategory }) {
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${category.isVisible ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
           {category.isVisible ? "公开显示" : "已隐藏"}
         </span>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${category.nameEn ? "bg-sky-50 text-sky-700" : "bg-amber-50 text-amber-800"}`}>
+          {category.nameEn ? "英文已填写" : "英文缺失"}
+        </span>
       </div>
       <CategoryFields category={category} prefix={`category-${category.id}`} state={state} />
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -78,7 +92,7 @@ export function CategoryManager({ categories }: { categories: AdminCategory[] })
     <div className="space-y-8">
       <form action={createAction} className="rounded-2xl border border-sky-200 bg-sky-50/50 p-5 sm:p-6">
         <h2 className="text-lg font-semibold">新建分类</h2>
-        <p className="mt-1 text-sm text-slate-600">填写中文内容、公开状态和排序值。</p>
+        <p className="mt-1 text-sm text-slate-600">填写中英文内容、公开状态和排序值；英文名称缺失时只在中文站显示。</p>
         <div className="mt-5"><CategoryFields prefix="new-category" state={createState} /></div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-sky-100 pt-4">
           <p aria-live="polite" className={createState.status === "error" ? "text-sm text-rose-700" : "text-sm text-emerald-700"}>{createState.message}</p>

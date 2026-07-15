@@ -701,3 +701,73 @@
   - 当前浏览器控制接口不能向原生文件输入注入本地路径，截图接口也在长后台页超时；因此真实 OS 选图、预览、上传、详情页登记和删除仍由店主完成一次人工验收，未伪称已自动验证。
 - Git 与部署：实现 commit `c96f7f5` 已推送到 `origin/main` 并由 Vercel 自动部署；新建商品页已确认加载该版本文案和控件。
 - 当前 Phase 状态：Phase 5C 的实现仍完整，但严格关闭条件不变；等待店主完成一次真实新建页选图上传和一次详情页删除确认后，才能把 Phase 5C 标记为真正完成。
+
+## Phase 12 英文顾客端与双语内容状态
+
+- 状态：本地实现完成；等待云端 migration、部署和店主双语录入验收后正式上线。
+- 实施日期：2026-07-15（America/Vancouver）。
+- 精确范围：启用完整英文顾客路径，默认 `/` 跳转 `/en`，公开页面可在 `English / 中文` 间切换；后台操作界面继续固定中文，只增加中英文成对录入。未加入顾客账号、在线支付、多币种、自动翻译或自由页面编辑。
+- 完成内容：
+  - 启用 `en` 与 `zh` locale；首页、商品列表、分类、集合、搜索/筛选、商品详情、购物车、订单请求、成功/错误/空状态和 Footer 均有英文系统文案。
+  - Header 语言切换保留当前路径与 query；根文档和客户端切换后的 `<html lang>` 跟随当前语言。
+  - 商品、分类、规格名、规格值、图片替代文字、首页模块和站点设置支持后台同页中英文录入，管理 RPC 在单一事务中保存两种语言。
+  - 英文公开查询不回退中文。商品缺少英文商品翻译、任一当前规格名/值英文翻译或任一商品图英文替代文字时，从全部英文入口隐藏；英文分类缺翻译时同样隐藏。
+  - 订单请求保存 `request_locale`；提交事务按顾客语言重新读取权威商品数据并保存本地化快照。顾客确认邮件使用提交语言，店主通知和后台继续使用中文并显示顾客语言。
+  - 首页、列表、分类、集合和详情生成对应语言 metadata、canonical 与 `hreflang`；sitemap 分语言收录实际可见实体。
+- 关键文件：
+  - `supabase/migrations/20260715191638_phase_12_english_storefront.sql`
+  - `supabase/tests/011_english_storefront.test.sql`
+  - `messages/en.json`、`messages/zh.json`、`lib/i18n/**`
+  - `lib/catalog/public-data.ts`、`lib/cart/server-validation.ts`、`lib/orders/validation.ts`
+  - `components/layout/language-switcher.tsx`、`components/layout/document-language.tsx`
+  - `app/[locale]/**`、`components/admin/**`、`components/order-request/**`
+  - `docs/ENGLISH_LOCALIZATION_SCOPE.md`
+- 新增或变更路由：无新增路由形状；既有 `/[locale]` 全部顾客路由新增 `/en` 实例，`/` 默认目标由 `/zh` 改为 `/en`。后台 URL 不变。
+- 数据库：新增 `product_image_translations`、`site_setting_translations` 和受控 RLS/GRANT；`order_requests` 新增受约束的 `request_locale`；新增/扩展双语管理 RPC 与 `submit_order_request_localized`。所有变更来自正式 migration。
+- API：无公开 Route Handler；继续使用 Server Action、匿名公开读、管理员 JWT/RLS 和 server-only 订单事务 RPC。
+- Storage：无 bucket、文件路径或对象策略变化；同一 private 商品图只新增按 locale 保存的替代文字。
+- 环境变量与依赖：无新增；未读取、修改或提交真实 `.env.local`，未新增 npm package。
+- 本地验证证据：
+  - 从空库 `db:reset` 成功应用全部 migrations 与 seed；英文迁移、RLS、原子双语保存和本地化订单快照由 pgTAP 覆盖。
+  - `db:test`：11 个文件、203/203 个 pgTAP 断言通过；`db:lint` 为 `No schema errors found`，`db:advisors` 为 `No issues found`。
+  - `typecheck` 与 `lint` 通过；Vitest 9 个文件、36/36 个单元测试通过；Next.js 16.2.10 production build 通过并生成全部既有公开和后台路由；`git diff --check` 通过。
+  - 默认 `/` 在真实浏览器进入 `/en`；英语/中文切换保持同一路径并正确更新 `html lang`。
+  - 英文商品详情完成规格选择与加入购物车；英文购物车显示本地化商品、规格、SKU 和服务器价格，并可进入英文订单请求。
+  - 英文订单表单空提交显示英文服务端校验错误；成功页明确写明未付款、未最终确认。为避免发送外部邮件，没有提交有效真实订单。
+  - 桌面 1280×720 和手机 390×844 检查公开页面；手机有效内容宽度与滚动宽度均为 375，没有页面级横向溢出。手机 Chrome 的 Dark Reader 扩展会注入属性并改变截图颜色，此扩展引起的 hydration 提示不属于应用代码。
+- 人工验收步骤：
+  1. 在本地或 Preview 后台建立一个测试分类和商品，填写全部中英文商品、规格和图片替代文字并发布。
+  2. 访问 `/en`，确认该商品出现在首页/列表/分类/搜索并可完成规格选择、购物车和订单请求；切换中文时路径实体与 query 保持不变。
+  3. 删除一个英文规格值或英文图片替代文字后保存，确认商品只从英文端隐藏且中文端仍显示；补齐后再次出现。
+  4. 在安全测试收件箱提交英文请求，确认顾客邮件为英文、店主邮件与后台为中文、快照内容为英文且两处都写明未付款/未确认。
+  5. 在桌面、笔记本和手机检查英文长标题、缺图、售罄、特价、空列表、加载和错误状态。
+- 未完成项、风险与有意延后：
+  - 本次没有向已连接的云端 Supabase 应用 Phase 12 migration，也没有 push 或触发 Vercel 部署，因此现有试用站仍不是本版本；在部署 migration 前不能把含新查询的应用版本发布到该环境。
+  - 未使用店主账号进行真实后台浏览器保存，也未向外部邮箱发送英文测试请求；后台双语界面由类型检查、build、数据库事务测试覆盖，但仍需店主按上述步骤完成一次真实人工验收。
+  - 现有中文商品不会自动生成英文。补齐英文前在 `/en` 隐藏是已确认的产品规则，不是数据丢失。
+  - 自动翻译、独立英文后台、英文 slug、多币种、在线支付和正式英文品牌专用字体继续延后。
+- 当前 Phase 是否真正完成：本地代码与数据库实现完成，公开顾客路径已完成真实浏览器验证；正式上线验收尚未完成，原因是云端 migration/部署、已登录后台双语保存和安全测试邮箱交付仍待执行。
+- 下一步启动条件：可以进入“Phase 12 云端激活与验收”，但必须按顺序先备份/应用 Supabase migration，再部署同一 commit，最后完成中英文录入、隐藏规则与双邮件 smoke test；不得先部署应用后补数据库。
+- Git 与外部操作：未 commit、未 push、未部署、未改云端数据。需要用户明确授权后才能执行 commit/push、Supabase migration 和 Vercel 部署；无需新增环境变量，但邮件验收仍依赖既有 Resend 测试配置。
+
+## Phase 12 云端开发数据库激活记录
+
+- 激活日期：2026-07-15（America/Vancouver）。
+- 根因：本地英文应用代码已经查询 `product_image_translations`，但常规开发服务器连接的云端开发 Supabase 尚未应用 Phase 12 migration，因此 `/en` 在存在公开商品时触发 `imageTranslations` 运行时错误。
+- 执行内容：先使用 `supabase db push --linked --dry-run` 确认只包含 `20260715191638_phase_12_english_storefront.sql`，随后将该 migration 应用到已连接的云端开发项目；未包含 seed，未 reset 远端数据库。
+- 远端验证：`supabase migration list --linked` 确认本地与远端 11 条 migration 完全一致；远端 `db lint --linked --level warning` 返回 `No schema errors found`。
+- Advisors：Phase 12 没有引入新的 advisor 问题。远端仍报告既有 `admin_update_order_request` 受控 `security definer` 提醒，以及 Supabase Auth leaked-password protection 未启用提醒；两者均不属于本次运行时错误。
+- 真实浏览器验证：`http://localhost:3000/en` 已完整渲染英文首页，无 Next.js Runtime Error 或应用 console error；语言切换完成 `/en → /zh → /en`，`html lang` 正确为 `en/zh`。仅保留既有 Hero 图片 LCP 开发警告。
+- 文件、路由、API、Storage 与环境变量：本次没有修改业务代码、路由、API、Storage 或环境变量；只更新本状态文档并应用已有正式 migration。
+- 当前状态：云端开发数据库已具备 Phase 12 schema；仍未 commit、push 或触发 Vercel 部署，现有线上试用站尚未加载这批未提交的英文应用代码。已登录后台双语保存和安全测试邮箱交付仍待人工验收。
+- 下一步：先 commit/push 当前 Phase 12 代码，再由 Vercel 部署同一版本，最后完成后台双语录入、英文隐藏规则和双邮件 smoke test；这些操作需要用户另行明确授权。
+
+## 顾客端空状态品牌头像统一
+
+- 调整日期：2026-07-15（America/Vancouver）。
+- 用户反馈：英文空列表中的中文“豆”字与页面语言和品牌视觉不协调，应统一使用 Happy Beans 双豆商标头像。
+- 完成内容：新增复用型 `BrandEmptyMark`，直接引用权威 `assets/brand/happy-beans-logo-primary.jpg`；商品空列表、公开错误页和 404 页全部改用该组件，并删除旧 `empty-bean` 文字图形样式。
+- 视觉边界：未重绘、裁改或生成新 Logo，继续使用用户指定的原始品牌资产；图片作为装饰元素使用空 alt，不增加重复朗读。
+- 数据库、API、Storage、环境变量和路由：无变化。
+- 自动检查：`typecheck`、`lint`、Vitest 9 个文件 36/36 与 production build 全部通过；代码搜索确认旧 `empty-bean` 和硬编码空状态“豆”已清除。
+- 真实浏览器验证：英文 `/en/collections/new` 桌面空列表、中文 `/zh/collections/featured` 390×844 手机空列表和英文不存在商品 404 均显示同一双豆头像；页面无框架错误覆盖层或应用 console error。

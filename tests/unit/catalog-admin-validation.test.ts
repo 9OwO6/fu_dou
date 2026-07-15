@@ -20,6 +20,11 @@ describe("Phase 5A catalog validation", () => {
         description: "",
         seoTitle: "猫猫杯",
         seoDescription: "",
+        titleEn: "",
+        shortDescriptionEn: "",
+        descriptionEn: "",
+        seoTitleEn: "",
+        seoDescriptionEn: "",
       },
     });
   });
@@ -46,10 +51,18 @@ describe("Phase 5A catalog validation", () => {
         slug: "home-decor",
         name: "家居摆件",
         description: "",
+        nameEn: "",
+        descriptionEn: "",
         sortOrder: 2,
         isVisible: true,
       },
     });
+  });
+
+  it("requires an English title when other English product content is entered", () => {
+    const result = parseProductForm(form({ slug: "cat-mug", title: "猫猫杯", descriptionEn: "A cheerful mug." }));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.fieldErrors.titleEn).toBeTruthy();
   });
 
   it("rejects fractional or negative category ordering", () => {

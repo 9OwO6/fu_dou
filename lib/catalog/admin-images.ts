@@ -7,6 +7,7 @@ export type AdminProductImage = {
   storagePath: string;
   signedUrl: string;
   altText: string;
+  altTextEn: string;
   variantId: string | null;
   sortOrder: number;
   width: number | null;
@@ -17,7 +18,7 @@ export async function getAdminProductImages(productId: string): Promise<AdminPro
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("product_images")
-    .select("id, storage_path, alt_text, variant_id, sort_order, width, height")
+    .select("id, storage_path, alt_text, variant_id, sort_order, width, height, product_image_translations(locale, alt_text)")
     .eq("product_id", productId)
     .order("sort_order", { ascending: true });
   if (error) throw new Error("商品图片暂时无法加载。");
@@ -33,6 +34,7 @@ export async function getAdminProductImages(productId: string): Promise<AdminPro
     storagePath: image.storage_path,
     signedUrl: signedImages[index]?.signedUrl ?? "",
     altText: image.alt_text,
+    altTextEn: image.product_image_translations.find((translation) => translation.locale === "en")?.alt_text ?? "",
     variantId: image.variant_id,
     sortOrder: image.sort_order,
     width: image.width,

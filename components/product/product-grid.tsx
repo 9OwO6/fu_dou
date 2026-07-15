@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandEmptyMark } from "@/components/layout/brand-empty-mark";
 import type { AppLocale } from "@/lib/i18n/config";
 import type { PublicProduct } from "@/lib/catalog/public-data";
 import { getMessages } from "@/lib/i18n/get-messages";
@@ -11,7 +12,7 @@ export function ProductGrid({ products, locale }: { products: PublicProduct[]; l
   if (products.length === 0) {
     return (
       <div className="empty-state">
-        <span aria-hidden="true" className="empty-bean">豆</span>
+        <BrandEmptyMark />
         <h2>{messages.emptyTitle}</h2>
         <p>{messages.emptyBody}</p>
         <Link className="button-secondary" href={`/${locale}/products`}>{messages.emptyCta}</Link>

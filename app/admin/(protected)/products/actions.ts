@@ -46,13 +46,18 @@ export async function createProductAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("admin_create_product", {
+  const { data, error } = await supabase.rpc("admin_create_product_bilingual", {
     p_slug: parsed.values.slug,
-    p_title: parsed.values.title,
-    p_short_description: parsed.values.shortDescription,
-    p_description: parsed.values.description,
-    p_seo_title: parsed.values.seoTitle,
-    p_seo_description: parsed.values.seoDescription,
+    p_zh_title: parsed.values.title,
+    p_zh_short_description: parsed.values.shortDescription,
+    p_zh_description: parsed.values.description,
+    p_zh_seo_title: parsed.values.seoTitle,
+    p_zh_seo_description: parsed.values.seoDescription,
+    p_en_title: parsed.values.titleEn,
+    p_en_short_description: parsed.values.shortDescriptionEn,
+    p_en_description: parsed.values.descriptionEn,
+    p_en_seo_title: parsed.values.seoTitleEn,
+    p_en_seo_description: parsed.values.seoDescriptionEn,
   });
 
   if (error || typeof data !== "string") return productErrorState(error?.code);
@@ -78,19 +83,26 @@ export async function updateProductAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_update_product", {
+  const { error } = await supabase.rpc("admin_update_product_bilingual", {
     p_product_id: productId,
     p_slug: parsed.values.slug,
-    p_title: parsed.values.title,
-    p_short_description: parsed.values.shortDescription,
-    p_description: parsed.values.description,
-    p_seo_title: parsed.values.seoTitle,
-    p_seo_description: parsed.values.seoDescription,
+    p_zh_title: parsed.values.title,
+    p_zh_short_description: parsed.values.shortDescription,
+    p_zh_description: parsed.values.description,
+    p_zh_seo_title: parsed.values.seoTitle,
+    p_zh_seo_description: parsed.values.seoDescription,
+    p_en_title: parsed.values.titleEn,
+    p_en_short_description: parsed.values.shortDescriptionEn,
+    p_en_description: parsed.values.descriptionEn,
+    p_en_seo_title: parsed.values.seoTitleEn,
+    p_en_seo_description: parsed.values.seoDescriptionEn,
   });
 
   if (error) return productErrorState(error.code);
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productId}`);
+  revalidatePath("/en");
+  revalidatePath("/zh");
   return { status: "success", message: "商品内容已保存。", fieldErrors: {} };
 }
 

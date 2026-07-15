@@ -19,6 +19,8 @@ export type AdminProductSummary = {
   publishedAt: string | null;
   updatedAt: string;
   title: string;
+  titleEn: string;
+  hasEnglishContent: boolean;
 };
 
 export type AdminProductDetail = AdminProductSummary & {
@@ -27,6 +29,10 @@ export type AdminProductDetail = AdminProductSummary & {
   description: string;
   seoTitle: string;
   seoDescription: string;
+  shortDescriptionEn: string;
+  descriptionEn: string;
+  seoTitleEn: string;
+  seoDescriptionEn: string;
 };
 
 export type AdminCategory = {
@@ -36,6 +42,8 @@ export type AdminCategory = {
   isVisible: boolean;
   name: string;
   description: string;
+  nameEn: string;
+  descriptionEn: string;
 };
 
 export type AdminProductCategorySelection = {
@@ -43,8 +51,8 @@ export type AdminProductCategorySelection = {
   selectedIds: string[];
 };
 
-function firstTranslation(value: TranslationRow[] | null | undefined) {
-  return value?.find((translation) => translation.locale === "zh") ?? null;
+function translationFor(value: TranslationRow[] | null | undefined, locale: "en" | "zh") {
+  return value?.find((translation) => translation.locale === locale) ?? null;
 }
 
 export async function listAdminProducts(filters: { query: string; status: string }) {
@@ -62,7 +70,9 @@ export async function listAdminProducts(filters: { query: string; status: string
   if (error) throw new Error("商品列表暂时无法加载。");
 
   const products: AdminProductSummary[] = (data ?? []).map((row) => {
-    const translation = firstTranslation(row.product_translations as TranslationRow[]);
+    const translations = row.product_translations as TranslationRow[];
+    const translation = translationFor(translations, "zh");
+    const english = translationFor(translations, "en");
     return {
       id: row.id,
       slug: row.slug,
@@ -70,6 +80,8 @@ export async function listAdminProducts(filters: { query: string; status: string
       publishedAt: row.published_at,
       updatedAt: row.updated_at,
       title: translation?.title ?? "未填写中文标题",
+      titleEn: english?.title ?? "",
+      hasEnglishContent: Boolean(english?.title),
     };
   });
 
@@ -77,7 +89,8 @@ export async function listAdminProducts(filters: { query: string; status: string
   return query
     ? products.filter((product) =>
         product.slug.toLowerCase().includes(query)
-        || product.title.toLocaleLowerCase("zh-CN").includes(query),
+        || product.title.toLocaleLowerCase("zh-CN").includes(query)
+        || product.titleEn.toLocaleLowerCase("en-CA").includes(query),
       )
     : products;
 }
@@ -93,7 +106,9 @@ export async function getAdminProduct(productId: string): Promise<AdminProductDe
   if (error) throw new Error("商品暂时无法加载。");
   if (!data) return null;
 
-  const translation = firstTranslation(data.product_translations as TranslationRow[]);
+  const translations = data.product_translations as TranslationRow[];
+  const translation = translationFor(translations, "zh");
+  const english = translationFor(translations, "en");
   return {
     id: data.id,
     slug: data.slug,
@@ -102,10 +117,16 @@ export async function getAdminProduct(productId: string): Promise<AdminProductDe
     updatedAt: data.updated_at,
     isFeatured: data.is_featured,
     title: translation?.title ?? "",
+    titleEn: english?.title ?? "",
+    hasEnglishContent: Boolean(english?.title),
     shortDescription: translation?.short_description ?? "",
     description: translation?.description ?? "",
     seoTitle: translation?.seo_title ?? "",
     seoDescription: translation?.seo_description ?? "",
+    shortDescriptionEn: english?.short_description ?? "",
+    descriptionEn: english?.description ?? "",
+    seoTitleEn: english?.seo_title ?? "",
+    seoDescriptionEn: english?.seo_description ?? "",
   };
 }
 
@@ -119,7 +140,9 @@ export async function listAdminCategories(): Promise<AdminCategory[]> {
 
   if (error) throw new Error("分类列表暂时无法加载。");
   return (data ?? []).map((row) => {
-    const translation = firstTranslation(row.category_translations as TranslationRow[]);
+    const translations = row.category_translations as TranslationRow[];
+    const translation = translationFor(translations, "zh");
+    const english = translationFor(translations, "en");
     return {
       id: row.id,
       slug: row.slug,
@@ -127,6 +150,8 @@ export async function listAdminCategories(): Promise<AdminCategory[]> {
       isVisible: row.is_visible,
       name: translation?.name ?? "未填写中文名称",
       description: translation?.description ?? "",
+      nameEn: english?.name ?? "",
+      descriptionEn: english?.description ?? "",
     };
   });
 }

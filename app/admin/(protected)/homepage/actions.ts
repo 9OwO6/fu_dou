@@ -23,9 +23,21 @@ export async function saveHomepageAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_save_homepage", {
-    p_sections: parsed.value.sections,
-    p_site_settings: parsed.value.siteSettings,
+  const { serviceAreaDescriptionEn, ...siteSettings } = parsed.value.siteSettings;
+  const { error } = await supabase.rpc("admin_save_homepage_bilingual", {
+    p_zh_sections: parsed.value.sections.map((section) => ({
+      sectionType: section.sectionType,
+      isEnabled: section.isEnabled,
+      sortOrder: section.sortOrder,
+      settings: section.settings,
+      translation: section.translation,
+    })),
+    p_site_settings: siteSettings,
+    p_en_sections: parsed.value.sections.map((section) => ({
+      sectionType: section.sectionType,
+      translation: section.translationEn,
+    })),
+    p_en_service_area_description: serviceAreaDescriptionEn,
   });
   if (error) {
     return {
@@ -37,6 +49,6 @@ export async function saveHomepageAction(
 
   revalidatePath("/admin/homepage");
   revalidatePath("/zh", "layout");
+  revalidatePath("/en", "layout");
   return { status: "success", message: "首页配置已保存，公开首页已更新。", fieldErrors: {} };
 }
-

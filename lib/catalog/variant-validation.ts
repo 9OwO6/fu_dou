@@ -3,11 +3,13 @@ import { isUuid } from "./admin-validation";
 export type VariantOptionValueInput = {
   id: string;
   label: string;
+  labelEn: string;
 };
 
 export type VariantOptionInput = {
   id: string;
   label: string;
+  labelEn: string;
   values: VariantOptionValueInput[];
 };
 
@@ -84,15 +86,18 @@ export function parseVariantConfiguration(raw: string): VariantConfigurationResu
     }
     const id = typeof rawOption.id === "string" ? rawOption.id : "";
     const label = typeof rawOption.label === "string" ? rawOption.label.trim() : "";
+    const labelEn = typeof rawOption.labelEn === "string" ? rawOption.labelEn.trim() : "";
     if (!isUuid(id) || allIds.has(id)) fieldErrors[`options.${optionIndex}.id`] = "规格标识无效，请刷新页面后重试。";
     allIds.add(id);
     if (!label || label.length > 100) fieldErrors[`options.${optionIndex}.label`] = "规格名称为必填，且不能超过 100 个字符。";
+    if (labelEn.length > 100) fieldErrors[`options.${optionIndex}.labelEn`] = "英文规格名称不能超过 100 个字符。";
     if (rawOption.values.length === 0 || rawOption.values.length > 50) {
       fieldErrors[`options.${optionIndex}.values`] = "每个规格需要 1–50 个值。";
     }
 
     const values: VariantOptionValueInput[] = [];
     const labels = new Set<string>();
+    const englishLabels = new Set<string>();
     rawOption.values.forEach((rawValue, valueIndex) => {
       if (!isRecord(rawValue)) {
         fieldErrors[`options.${optionIndex}.values.${valueIndex}`] = "规格值格式不正确。";
@@ -100,22 +105,31 @@ export function parseVariantConfiguration(raw: string): VariantConfigurationResu
       }
       const valueId = typeof rawValue.id === "string" ? rawValue.id : "";
       const valueLabel = typeof rawValue.label === "string" ? rawValue.label.trim() : "";
+      const valueLabelEn = typeof rawValue.labelEn === "string" ? rawValue.labelEn.trim() : "";
       if (!isUuid(valueId) || allIds.has(valueId)) fieldErrors[`options.${optionIndex}.values.${valueIndex}.id`] = "规格值标识无效，请刷新页面后重试。";
       allIds.add(valueId);
       if (!valueLabel || valueLabel.length > 100) fieldErrors[`options.${optionIndex}.values.${valueIndex}.label`] = "规格值为必填，且不能超过 100 个字符。";
+      if (valueLabelEn.length > 100) fieldErrors[`options.${optionIndex}.values.${valueIndex}.labelEn`] = "英文规格值不能超过 100 个字符。";
       const normalized = normalizeLabel(valueLabel);
       if (normalized && labels.has(normalized)) fieldErrors[`options.${optionIndex}.values.${valueIndex}.label`] = "同一规格内不能有重复的规格值。";
       labels.add(normalized);
-      values.push({ id: valueId, label: valueLabel });
+      const normalizedEnglish = valueLabelEn.toLocaleLowerCase("en-CA");
+      if (normalizedEnglish && englishLabels.has(normalizedEnglish)) fieldErrors[`options.${optionIndex}.values.${valueIndex}.labelEn`] = "同一规格内不能有重复的英文规格值。";
+      englishLabels.add(normalizedEnglish);
+      values.push({ id: valueId, label: valueLabel, labelEn: valueLabelEn });
     });
-    options.push({ id, label, values });
+    options.push({ id, label, labelEn, values });
   });
 
   const optionLabels = new Set<string>();
+  const optionLabelsEn = new Set<string>();
   options.forEach((option, index) => {
     const normalized = normalizeLabel(option.label);
     if (normalized && optionLabels.has(normalized)) fieldErrors[`options.${index}.label`] = "规格名称不能重复。";
     optionLabels.add(normalized);
+    const normalizedEnglish = option.labelEn.toLocaleLowerCase("en-CA");
+    if (normalizedEnglish && optionLabelsEn.has(normalizedEnglish)) fieldErrors[`options.${index}.labelEn`] = "英文规格名称不能重复。";
+    optionLabelsEn.add(normalizedEnglish);
   });
 
   const expectedSignatures = cartesianSignatures(options);

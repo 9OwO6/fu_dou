@@ -28,7 +28,7 @@ export function CatalogPage({
     <main>
       <section className="catalog-hero">
         <div className="store-container">
-          <nav aria-label="面包屑" className="breadcrumbs"><Link href={`/${locale}`}>{messages.common.home}</Link><span>/</span><span aria-current="page">{title}</span></nav>
+          <nav aria-label={messages.common.breadcrumbLabel} className="breadcrumbs"><Link href={`/${locale}`}>{messages.common.home}</Link><span>/</span><span aria-current="page">{title}</span></nav>
           <h1>{title}</h1>
           <p>{description}</p>
         </div>

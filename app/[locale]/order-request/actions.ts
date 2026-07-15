@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { sendOrderRequestEmails } from "@/lib/email/order-request-emails";
 import { validateEnvironment } from "@/lib/env/schema";
 import { isSupportedLocale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/get-messages";
 import { parseOrderRequestForm, type OrderRequestField } from "@/lib/orders/validation";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -14,12 +15,6 @@ export type SubmitOrderState = {
   message: string;
   fieldErrors: Partial<Record<OrderRequestField, string>>;
   requestNumber?: string;
-};
-
-const initialError: SubmitOrderState = {
-  status: "error",
-  message: "订单请求暂时无法提交，请稍后重试。购物车内容仍保留在本设备。",
-  fieldErrors: {},
 };
 
 function hmac(value: string, secret: string) {
@@ -36,15 +31,17 @@ export async function submitOrderRequestAction(
   _previousState: SubmitOrderState,
   formData: FormData,
 ): Promise<SubmitOrderState> {
-  if (!isSupportedLocale(locale)) return initialError;
-  const parsed = parseOrderRequestForm(formData);
+  if (!isSupportedLocale(locale)) return { status: "error", message: "Unsupported language.", fieldErrors: {} };
+  const messages = getMessages(locale).public.orderRequest;
+  const initialError: SubmitOrderState = { status: "error", message: messages.genericError, fieldErrors: {} };
+  const parsed = parseOrderRequestForm(formData, locale);
 
   // Bots receive the same generic success shape without a database write.
   if (parsed.honeypotFilled) {
-    return { status: "success", message: "订单请求已收到。", fieldErrors: {}, requestNumber: "" };
+    return { status: "success", message: messages.botSuccess, fieldErrors: {}, requestNumber: "" };
   }
   if (!parsed.success) {
-    return { status: "error", message: "请修正表单中的问题。", fieldErrors: parsed.fieldErrors };
+    return { status: "error", message: messages.fixErrors, fieldErrors: parsed.fieldErrors };
   }
 
   let securityEnv;
@@ -59,7 +56,7 @@ export async function submitOrderRequestAction(
   try {
     const requestHeaders = await headers();
     const supabase = createSupabaseServiceClient();
-    const { data, error } = await supabase.rpc("submit_order_request", {
+    const { data, error } = await supabase.rpc("submit_order_request_localized", {
       p_customer_name: parsed.values.customerName,
       p_email: parsed.values.email,
       p_phone: parsed.values.phone || null,
@@ -73,20 +70,22 @@ export async function submitOrderRequestAction(
       p_items: parsed.values.items,
       p_ip_hash: hmac(clientAddress(requestHeaders), securityEnv.ORDER_RATE_LIMIT_SECRET),
       p_email_hash: hmac(parsed.values.email, securityEnv.ORDER_RATE_LIMIT_SECRET),
+      p_request_locale: locale,
     });
 
     if (error || !data || typeof data !== "object") {
       const databaseMessage = error?.message ?? "";
       const fieldErrors: SubmitOrderState["fieldErrors"] = {};
-      if (databaseMessage.includes("insufficient_stock")) fieldErrors.cart = "部分商品库存不足，请返回购物车重新确认。";
-      if (databaseMessage.includes("item_unavailable")) fieldErrors.cart = "部分商品已下架、禁用或不可购买，请返回购物车重新确认。";
+      if (databaseMessage.includes("insufficient_stock")) fieldErrors.cart = messages.stockServerError;
+      if (databaseMessage.includes("item_unavailable")) fieldErrors.cart = messages.unavailableServerError;
+      if (databaseMessage.includes("translation_unavailable")) fieldErrors.cart = messages.translationServerError;
       return { ...initialError, fieldErrors };
     }
     const result = data as Record<string, unknown>;
     if (result.ok === false && result.code === "rate_limited") {
       return {
         status: "error",
-        message: "提交次数较多，请一小时后再试。如需帮助，请直接联系 Happy Beans。",
+        message: messages.rateLimited,
         fieldErrors: {},
       };
     }
@@ -99,7 +98,7 @@ export async function submitOrderRequestAction(
     await sendOrderRequestEmails(result.orderRequestId);
     return {
       status: "success",
-      message: "订单请求已保存。",
+      message: messages.saved,
       fieldErrors: {},
       requestNumber: result.requestNumber,
     };

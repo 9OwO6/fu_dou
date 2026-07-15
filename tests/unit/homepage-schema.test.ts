@@ -10,6 +10,8 @@ function validForm() {
     form.set(`${prefix}.sortOrder`, String((index + 1) * 10));
     if (type !== "announcement") form.set(`${prefix}.heading`, `${type} 标题`);
     form.set(`${prefix}.body`, type === "announcement" ? "公告" : `${type} 说明`);
+    if (type !== "announcement") form.set(`${prefix}.headingEn`, `${type} heading`);
+    form.set(`${prefix}.bodyEn`, type === "announcement" ? "Announcement" : `${type} description`);
     if (type === "hero" || type === "brand_story") form.set(`${prefix}.imageId`, "");
     if (type === "new_products" || type === "featured_products" || type === "sale_products") {
       form.set(`${prefix}.selectionMode`, "automatic");
@@ -20,10 +22,16 @@ function validForm() {
       form.set(`${prefix}.pickupBody`, "自取说明");
       form.set(`${prefix}.deliveryTitle`, "配送");
       form.set(`${prefix}.deliveryBody`, "配送说明");
+      form.set(`${prefix}.pickupTitleEn`, "Pickup");
+      form.set(`${prefix}.pickupBodyEn`, "Pickup details");
+      form.set(`${prefix}.deliveryTitleEn`, "Delivery");
+      form.set(`${prefix}.deliveryBodyEn`, "Delivery details");
     }
     if (type === "faq") {
       form.set(`${prefix}.faq.0.question`, "可以付款吗？");
       form.set(`${prefix}.faq.0.answer`, "当前只提交订单请求。");
+      form.set(`${prefix}.faqEn.0.question`, "Can I pay online?");
+      form.set(`${prefix}.faqEn.0.answer`, "This release accepts order requests only.");
     }
   });
   form.set("site.pickupEnabled", "on");
@@ -70,4 +78,3 @@ describe("homepage schema", () => {
     if (!parsed.success) expect(parsed.fieldErrors["section.hero.ctaHref"]).toContain("受控");
   });
 });
-

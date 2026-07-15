@@ -28,16 +28,16 @@
 
 ## 路由
 
-- `/` 仅负责重定向至默认 locale `/zh`。
-- `/[locale]` 是公开网站入口；Phase 1 仅启用 `zh`，未知 locale 返回 404。
+- `/` 仅负责重定向至默认 locale `/en`。
+- `/[locale]` 是公开网站入口；当前启用 `en` 与 `zh`，未知 locale 返回 404。
 - `/admin/login` 不带 locale 前缀，第一版后台固定中文。
 - Phase 1 页面都是明确标注的工程骨架，不代表正式视觉设计。
 
 ## 国际化
 
 - `lib/i18n/config.ts` 是 locale 白名单和默认 locale 的唯一来源。
-- `messages/zh.json` 保存当前系统文案。
-- 后续新增英文时，必须先补字典和内容，再显式加入 locale 白名单；不能提前公开空英文页面。
+- `messages/en.json` 与 `messages/zh.json` 保存对应语言的系统文案；`en` 是默认 locale。
+- 顾客端语言切换保留当前路径和 query。英文公开查询采用严格完整性规则：缺少实体英文翻译、任一规格名/规格值英文翻译或任一商品图英文替代文字时，该商品不会出现在英文前台，绝不回退中文。
 
 ## 环境变量
 
@@ -136,12 +136,12 @@
 
 ## Phase 6 公开商品浏览架构
 
-- `/[locale]` 公开路由继续只启用 `zh`；Header、Footer、系统状态和筛选文案来自 locale 字典，商品与分类内容来自 translation 表，为未来 `en` 保留数据与路由边界但不提前发布英文页面。
+- `/[locale]` 公开路由启用 `en` 与 `zh`；Header、Footer、系统状态和筛选文案来自 locale 字典，商品与分类内容来自 translation 表。英文查询执行完整性过滤，中文内容不会泄漏到英文页面。
 - `lib/catalog/public-data.ts` 是公开目录只读入口。Server Components 使用 publishable key 与 anon RLS 查询已发布商品、可见分类、启用规格和图片元数据；private `product-images` 只通过短时签名 URL 展示，不开放 bucket 公共读取。
 - 商品与分类通过 `product_categories` 多对多连接。匿名策略必须同时满足商品已发布和分类可见；管理员保存分类时由受保护 Server Action 再次 `requireAdmin()`，调用 `security invoker` RPC 并继续受 RLS 约束。
 - 列表页把搜索、分类、库存、特价和排序编码到 URL query，支持可分享与服务端渲染；分类和集合页复用同一商品卡与只读查询模型，不引入平行数据路径。
 - 商品详情的规格选择仅在浏览器维护当前选择；价格、原价、库存和启用状态均来自服务器提供的有效 variant 快照。本阶段没有购物车写入、订单请求或金额提交入口。
-- 首页、列表、分类、集合和详情均生成中文 metadata；`sitemap.ts` 只收录当前可公开读取的商品与分类，`robots.ts` 允许公开页面并禁止 `/admin`。
+- 首页、列表、分类、集合和详情按 locale 生成 metadata、canonical 与 `hreflang`；`sitemap.ts` 分别收录各语言当前可公开读取的商品与分类，`robots.ts` 允许公开页面并禁止 `/admin`。
 - 公开页面提供 loading、error、not-found、缺图、空列表、售罄和无有效组合状态；响应式布局在 1455、1024 内容宽度和 390 手机宽度的真实浏览器中验证。
 
 ## Phase 7 游客购物车架构
@@ -155,7 +155,7 @@
 
 ## Phase 8 订单请求、后台处理与邮件架构
 
-- `/zh/order-request` 从版本化游客购物车读取 `variantId + quantity`，先用公开 RLS 重新展示服务器摘要；提交时仍不复用该页面校验结果，而是调用服务器专用事务 RPC 再次权威读取商品、中文标题、规格、SKU、当前 CAD 价格、库存和图片路径。
+- `/[locale]/order-request` 从版本化游客购物车读取 `variantId + quantity`，先用公开 RLS 重新展示服务器摘要；提交时仍不复用该页面校验结果，而是调用服务器专用事务 RPC 再次权威读取对应语言的商品标题、规格、SKU、当前 CAD 价格、库存和图片路径。订单保存 `request_locale`，顾客邮件使用提交语言，店主后台和店主邮件保持中文。
 - `public.submit_order_request` 只授予 `service_role` 执行权；浏览器、匿名和普通 authenticated 角色都不能直接调用。Next.js Server Action 通过独立 server-only Supabase client 调用，secret 不进入客户端 bundle。函数使用行锁、数据库约束和 deferred totals trigger，在单一事务中写入请求、items 快照、两封邮件状态和限流事件。
 - 限流只保存由服务器 HMAC 生成的 IP/email 64 位十六进制摘要，不保存原始 IP；同一摘要一小时最多接受 3 次请求。honeypot 在 Server Action 中先行处理，正常字段仍由 TypeScript 与数据库双重校验。
 - 订单写入提交后才调用 Resend。`order_request_emails` 分别记录店主通知和顾客确认的 `pending/sending/sent/failed`、尝试次数、provider id 与不含 secret 的失败摘要。发送失败只更新邮件状态，不删除或回滚已入库请求；后台可重试，Resend idempotency key 按请求和邮件类型固定。

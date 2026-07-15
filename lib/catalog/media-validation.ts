@@ -15,12 +15,13 @@ export type ProductImageInput = {
   id: string;
   storagePath: string;
   altText: string;
+  altTextEn: string;
   variantId: string | null;
   width: number | null;
   height: number | null;
 };
 
-export type ProductImageConfigurationInput = Pick<ProductImageInput, "id" | "altText" | "variantId">;
+export type ProductImageConfigurationInput = Pick<ProductImageInput, "id" | "altText" | "altTextEn" | "variantId">;
 
 type ValidationResult<T> = { success: true; values: T } | { success: false; message: string };
 
@@ -75,12 +76,14 @@ export function parseUploadedImages(productId: string, raw: string): ValidationR
     const id = typeof item.id === "string" ? item.id : "";
     const storagePath = typeof item.storagePath === "string" ? item.storagePath : "";
     const altText = typeof item.altText === "string" ? item.altText.trim() : "";
+    const altTextEn = typeof item.altTextEn === "string" ? item.altTextEn.trim() : "";
     const variantId = typeof item.variantId === "string" && item.variantId ? item.variantId : null;
     if (!isUuid(id) || ids.has(id) || paths.has(storagePath)) return { success: false, message: "图片标识重复或无效。" };
     if (!new RegExp(`^products/${productId}/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(jpg|jpeg|png|webp)$`).test(storagePath)) {
       return { success: false, message: "图片路径不属于当前商品。" };
     }
     if (!altText || altText.length > 300) return { success: false, message: "每张图片都需要 1–300 个字符的中文替代文字。" };
+    if (altTextEn.length > 300) return { success: false, message: "英文替代文字不能超过 300 个字符。" };
     if (variantId && !isUuid(variantId)) return { success: false, message: "图片关联的规格组合无效。" };
     ids.add(id);
     paths.add(storagePath);
@@ -88,6 +91,7 @@ export function parseUploadedImages(productId: string, raw: string): ValidationR
       id,
       storagePath,
       altText,
+      altTextEn,
       variantId,
       width: optionalDimension(item.width),
       height: optionalDimension(item.height),
@@ -112,12 +116,14 @@ export function parseProductImageConfiguration(raw: string): ValidationResult<Pr
     if (!isRecord(item)) return { success: false, message: "图片排序资料格式不正确。" };
     const id = typeof item.id === "string" ? item.id : "";
     const altText = typeof item.altText === "string" ? item.altText.trim() : "";
+    const altTextEn = typeof item.altTextEn === "string" ? item.altTextEn.trim() : "";
     const variantId = typeof item.variantId === "string" && item.variantId ? item.variantId : null;
     if (!isUuid(id) || seen.has(id)) return { success: false, message: "图片标识重复或无效。" };
     if (!altText || altText.length > 300) return { success: false, message: "每张图片都需要 1–300 个字符的中文替代文字。" };
+    if (altTextEn.length > 300) return { success: false, message: "英文替代文字不能超过 300 个字符。" };
     if (variantId && !isUuid(variantId)) return { success: false, message: "图片关联的规格组合无效。" };
     seen.add(id);
-    images.push({ id, altText, variantId });
+    images.push({ id, altText, altTextEn, variantId });
   }
   return { success: true, values: images };
 }

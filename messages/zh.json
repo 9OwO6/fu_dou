@@ -3,7 +3,7 @@
     "phaseLabel": "Happy Beans 安全后台"
   },
   "storefront": {
-    "title": "Happy Beans / 福豆",
+    "title": "可爱家居与礼物",
     "description": "把一点可爱和轻松，带进每天的生活。"
   },
   "adminLogin": {
@@ -24,7 +24,9 @@
       "search": "搜索商品",
       "searchPlaceholder": "搜索可爱小物",
       "openMenu": "打开导航菜单",
-      "mobileNavLabel": "移动端导航"
+      "mobileNavLabel": "移动端导航",
+      "switchLanguage": "切换为 English"
+      ,"cartCount": "{label}，共 {count} 件"
     },
     "footer": {
       "tagline": "把一点可爱和轻松，带进每天的生活。",
@@ -52,7 +54,9 @@
       "inStock": "有库存",
       "temporarilySoldOut": "暂时售罄",
       "from": "起",
-      "cad": "CAD"
+      "cad": "CAD",
+      "breadcrumbLabel": "面包屑",
+      "viewProduct": "查看{product}"
     },
     "home": {
       "title": "把一点可爱和轻松，带进每天的生活。",
@@ -92,7 +96,12 @@
       "faqPaymentA": "第一版不提供在线支付。你可以先把商品加入游客购物车；订单请求开放后，再由店主联系确认库存、税费和最终金额。",
       "contactTitle": "有想找的可爱小物吗？",
       "contactBody": "先从全部商品开始逛逛，也可以用搜索快速找到关键词。",
-      "contactCta": "开始逛逛"
+      "contactCta": "开始逛逛",
+      "viewAll": "查看全部",
+      "categoryEmptyTitle": "热门分类正在整理",
+      "categoryEmptyBody": "可以先从全部商品开始浏览。",
+      "fulfillmentEmptyTitle": "履约安排正在更新",
+      "fulfillmentEmptyBody": "提交订单请求前，请等待店主确认最新安排。"
     },
     "catalog": {
       "countSuffix": "件商品",
@@ -116,7 +125,9 @@
       "emptyCta": "查看全部商品",
       "allTitle": "全部商品",
       "allDescription": "按分类、库存、特价或价格筛选，找到刚好适合你的可爱小物。",
-      "allSeoDescription": "搜索和筛选 Happy Beans 福豆的全部公开商品。"
+      "allSeoDescription": "搜索和筛选 Happy Beans 福豆的全部公开商品。",
+      "categorySeoDescription": "浏览{category}分类商品。",
+      "categoryDescription": "这里收集了属于“{category}”的公开商品。"
     },
     "collections": {
       "newTitle": "新品上架",
@@ -156,7 +167,11 @@
       "detailsFallback": "更多材质、尺寸与护理信息将由店主逐步补充。",
       "categories": "所属分类",
       "relatedTitle": "也许你还会喜欢",
-      "relatedBody": "来自相近分类的其他小物。"
+      "relatedBody": "来自相近分类的其他小物。",
+      "saleBadge": "特价",
+      "newBadge": "新品",
+      "fromSuffix": "起",
+      "stockUnit": "件"
     },
     "cart": {
       "title": "购物车",
@@ -190,6 +205,82 @@
       "feesBody": "这里暂时只显示商品小计。配送费、税费及最终金额将由店主联系确认。",
       "orderRequestLater": "提交的是订单请求，不会在线付款，也不代表订单已经最终确认。",
       "orderRequestCta": "填写订单请求"
+      ,"defaultVariant": "默认规格"
+    },
+    "orderRequest": {
+      "pageTitle": "提交订单请求",
+      "pageDescription": "向 Happy Beans 提交未付款、待店主确认的订单请求。",
+      "pageIntro": "填写必要联系与履约信息。我们不会在这里收集完整街道地址，也不会要求在线付款。",
+      "loadingCart": "正在读取本设备的购物车…",
+      "emptyTitle": "购物车中没有可提交的商品",
+      "emptyBody": "请先选择完整规格并加入购物车，再填写订单请求。",
+      "backToProducts": "返回全部商品",
+      "honeypot": "公司网站",
+      "contactTitle": "联系信息",
+      "name": "姓名",
+      "email": "邮箱",
+      "phone": "联系电话",
+      "otherContact": "微信号或其他补充联系方式",
+      "summaryTitle": "订单摘要",
+      "summaryIntro": "这里的商品、价格和库存已由服务器重新校验；提交事务仍会再独立复核一次。",
+      "summaryLoading": "正在重新校验商品、价格和库存…",
+      "summaryError": "暂时无法校验订单摘要，请返回购物车后重试。",
+      "stockError": "当前库存不足，请返回购物车调整数量。",
+      "unavailableError": "商品或规格已不可用，请返回购物车移除。",
+      "subtotal": "商品小计",
+      "contactPreference": "偏好联系方式",
+      "emailOption": "邮箱",
+      "emailOptionNote": "通过你填写的邮箱联系",
+      "phoneOption": "电话",
+      "phoneOptionNote": "联系电话将变为必填",
+      "fulfillmentTitle": "履约方式",
+      "pickup": "自取",
+      "pickupNote": "地点和时间由店主联系确认",
+      "delivery": "本地配送",
+      "deliveryNote": "范围和费用由店主确认",
+      "city": "城市或区域",
+      "postalCode": "邮编",
+      "detailsTitle": "时间与备注",
+      "preferredTime": "期望取货或配送时间",
+      "preferredTimePlaceholder": "例如：周六下午（最终时间待确认）",
+      "note": "订单备注",
+      "confirmTitle": "提交前请确认",
+      "confirmNotice": "提交后不会立即付款，也不代表订单已经最终确认。Happy Beans 会联系你核对库存、自取或配送安排、税费及最终金额。",
+      "consent": "我了解这是订单请求，并同意仅为联系和履约安排提供以上必要信息。",
+      "backToCart": "返回购物车",
+      "unpaidShort": "未付款 · 未最终确认",
+      "submit": "提交订单请求",
+      "submitting": "正在安全保存请求…",
+      "genericError": "订单请求暂时无法提交，请稍后重试。购物车内容仍保留在本设备。",
+      "botSuccess": "订单请求已收到。",
+      "fixErrors": "请修正表单中的问题。",
+      "stockServerError": "部分商品库存不足，请返回购物车重新确认。",
+      "unavailableServerError": "部分商品已下架、禁用或不可购买，请返回购物车重新确认。",
+      "translationServerError": "部分商品缺少当前语言内容，请返回购物车重新确认。",
+      "rateLimited": "提交次数较多，请一小时后再试。如需帮助，请直接联系 Happy Beans。",
+      "saved": "订单请求已保存。",
+      "nameError": "请输入 1–120 个字符的姓名。",
+      "emailError": "请输入有效的邮箱地址。",
+      "contactError": "请选择偏好联系方式。",
+      "phoneRequiredError": "选择电话联系时必须填写联系电话。",
+      "phoneLengthError": "联系电话不能超过 40 个字符。",
+      "fulfillmentError": "请选择自取或本地配送。",
+      "cityError": "请输入 1–120 个字符的城市或区域。",
+      "postalRequiredError": "选择本地配送时必须填写邮编。",
+      "postalLengthError": "邮编不能超过 20 个字符。",
+      "otherContactError": "补充联系方式不能超过 120 个字符。",
+      "timeError": "期望时间不能超过 200 个字符。",
+      "noteError": "订单备注不能超过 2000 个字符。",
+      "consentError": "请先同意订单请求与隐私说明。",
+      "cartError": "购物车为空或数据无效，请返回购物车重新确认。",
+      "successTitle": "订单请求已收到",
+      "successKicker": "订单请求已安全保存",
+      "successHeading": "谢谢你，我们已经收到请求",
+      "requestNumber": "请求编号",
+      "successNotice": "此请求尚未付款，也尚未最终确认。",
+      "successBody": "Happy Beans 会按你选择的联系方式核对库存、自取或配送安排、税费及最终金额。请保留上方请求编号。",
+      "continueShopping": "继续逛逛",
+      "backHome": "返回首页"
     },
     "errors": {
       "loading": "页面加载中",

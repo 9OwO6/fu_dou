@@ -35,6 +35,17 @@ describe("parseOrderRequestForm", () => {
     expect(result.fieldErrors.postalCode).toBeTruthy();
   });
 
+  it("returns English validation messages for an English request", () => {
+    const form = validForm();
+    form.set("preferredContact", "phone");
+    form.set("fulfillmentMethod", "local_delivery");
+    const result = parseOrderRequestForm(form, "en");
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.fieldErrors.phone).toBe("Enter a phone number when phone contact is selected.");
+    expect(result.fieldErrors.postalCode).toBe("Enter a postal code for local delivery.");
+  });
+
   it("rejects duplicate variants, invalid quantities, and missing consent", () => {
     const form = validForm();
     form.delete("consent");

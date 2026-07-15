@@ -47,7 +47,7 @@ export default async function AdminProductsPage({
         <div>
           <p className="text-sm font-semibold text-sky-700">Phase 5A</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight" id="products-heading">商品管理</h1>
-          <p className="mt-2 text-slate-600">管理商品基础中文内容、SEO 和发布状态。</p>
+          <p className="mt-2 text-slate-600">管理商品中英文内容、SEO 和发布状态；英文缺失商品不会进入英文站。</p>
         </div>
         <Link className="rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" href="/admin/products/new">
           新建商品
@@ -84,13 +84,14 @@ export default async function AdminProductsPage({
           <table className="min-w-[800px] w-full border-collapse text-left">
             <caption className="sr-only">后台商品列表，共 {products.length} 项</caption>
             <thead className="border-b border-slate-200 bg-slate-50 text-sm text-slate-600">
-              <tr><th className="px-4 py-3 font-semibold">商品</th><th className="px-4 py-3 font-semibold">状态</th><th className="px-4 py-3 font-semibold">更新时间</th><th className="px-4 py-3 text-right font-semibold">操作</th></tr>
+              <tr><th className="px-4 py-3 font-semibold">商品</th><th className="px-4 py-3 font-semibold">状态</th><th className="px-4 py-3 font-semibold">英文内容</th><th className="px-4 py-3 font-semibold">更新时间</th><th className="px-4 py-3 text-right font-semibold">操作</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {products.map((product) => (
                 <tr key={product.id}>
                   <td className="px-4 py-4"><Link className="font-semibold text-sky-800 underline-offset-4 hover:underline" href={`/admin/products/${product.id}`}>{product.title}</Link><p className="mt-1 font-mono text-xs text-slate-500">/{product.slug}</p></td>
                   <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[product.status]}`}>{statusLabels[product.status]}</span></td>
+                  <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${product.hasEnglishContent ? "bg-sky-50 text-sky-700" : "bg-amber-50 text-amber-800"}`}>{product.hasEnglishContent ? "标题已填写" : "缺少英文标题"}</span></td>
                   <td className="px-4 py-4 text-sm text-slate-600"><time dateTime={product.updatedAt}>{new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Vancouver" }).format(new Date(product.updatedAt))}</time></td>
                   <td className="px-4 py-4"><ProductActions compact product={product} /></td>
                 </tr>

@@ -66,6 +66,13 @@ export type HomepageSection = {
     ctaHref: ControlledCtaTarget | "";
     content: HomepageTranslationContent;
   };
+  translationEn: {
+    heading: string;
+    body: string;
+    ctaLabel: string;
+    ctaHref: ControlledCtaTarget | "";
+    content: HomepageTranslationContent;
+  };
 };
 
 export type HomepageSiteSettings = {
@@ -74,6 +81,7 @@ export type HomepageSiteSettings = {
   pickupEnabled: boolean;
   localDeliveryEnabled: boolean;
   serviceAreaDescription: string;
+  serviceAreaDescriptionEn: string;
 };
 
 export type HomepageConfiguration = {
@@ -184,12 +192,50 @@ export function parseHomepageForm(formData: FormData): HomepageParseResult {
       content.items = items;
     }
 
+    const headingEn = text(formData, `${prefix}.headingEn`);
+    const bodyEn = text(formData, `${prefix}.bodyEn`);
+    const ctaLabelEn = text(formData, `${prefix}.ctaLabelEn`);
+    const ctaHrefEnRaw = text(formData, `${prefix}.ctaHrefEn`);
+    const ctaHrefEn = controlledCtaTargets.includes(ctaHrefEnRaw as ControlledCtaTarget)
+      ? ctaHrefEnRaw as ControlledCtaTarget
+      : "";
+    addTextError(errors, `${prefix}.headingEn`, headingEn, 160, isEnabled && sectionType !== "announcement");
+    addTextError(errors, `${prefix}.bodyEn`, bodyEn, 5_000, isEnabled && sectionType === "announcement");
+    addTextError(errors, `${prefix}.ctaLabelEn`, ctaLabelEn, 80);
+    if (ctaHrefEnRaw && !ctaHrefEn) errors[`${prefix}.ctaHrefEn`] = "请选择受控的站内目标。";
+
+    const contentEn: HomepageTranslationContent = {};
+    if (sectionType === "fulfillment") {
+      for (const field of ["pickupTitle", "pickupBody", "deliveryTitle", "deliveryBody"] as const) {
+        const key = `${prefix}.${field}En`;
+        const value = text(formData, key);
+        addTextError(errors, key, value, field.endsWith("Title") ? 120 : 2_000, isEnabled);
+        contentEn[field] = value;
+      }
+    }
+    if (sectionType === "faq") {
+      const items: FaqItem[] = [];
+      for (let index = 0; index < 5; index += 1) {
+        const questionKey = `${prefix}.faqEn.${index}.question`;
+        const answerKey = `${prefix}.faqEn.${index}.answer`;
+        const question = text(formData, questionKey);
+        const answer = text(formData, answerKey);
+        if (!question && !answer) continue;
+        addTextError(errors, questionKey, question, 200, true);
+        addTextError(errors, answerKey, answer, 2_000, true);
+        items.push({ question, answer });
+      }
+      if (isEnabled && items.length === 0) errors[`${prefix}.faqEn`] = "启用 FAQ 时至少填写一组英文问题和答案。";
+      contentEn.items = items;
+    }
+
     return {
       sectionType,
       isEnabled,
       sortOrder,
       settings,
       translation: { heading, body, ctaLabel, ctaHref, content },
+      translationEn: { heading: headingEn, body: bodyEn, ctaLabel: ctaLabelEn, ctaHref: ctaHrefEn, content: contentEn },
     };
   });
 
@@ -199,6 +245,7 @@ export function parseHomepageForm(formData: FormData): HomepageParseResult {
     pickupEnabled: formData.get("site.pickupEnabled") === "on",
     localDeliveryEnabled: formData.get("site.localDeliveryEnabled") === "on",
     serviceAreaDescription: text(formData, "site.serviceAreaDescription"),
+    serviceAreaDescriptionEn: text(formData, "site.serviceAreaDescriptionEn"),
   };
   addTextError(errors, "site.contactEmail", siteSettings.contactEmail, 320);
   if (siteSettings.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(siteSettings.contactEmail)) {
@@ -206,6 +253,7 @@ export function parseHomepageForm(formData: FormData): HomepageParseResult {
   }
   addTextError(errors, "site.contactPhone", siteSettings.contactPhone, 40);
   addTextError(errors, "site.serviceAreaDescription", siteSettings.serviceAreaDescription, 1_000);
+  addTextError(errors, "site.serviceAreaDescriptionEn", siteSettings.serviceAreaDescriptionEn, 1_000);
 
   return Object.keys(errors).length > 0
     ? { success: false, fieldErrors: errors }
@@ -215,4 +263,3 @@ export function parseHomepageForm(formData: FormData): HomepageParseResult {
 export function getSection(configuration: HomepageConfiguration, type: HomepageSectionType) {
   return configuration.sections.find((section) => section.sectionType === type);
 }
-

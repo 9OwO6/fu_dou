@@ -14,10 +14,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!isSupportedLocale(locale)) return {};
   const product = await getPublicProduct(locale, slug);
   if (!product) return {};
+  const otherLocale = locale === "en" ? "zh" : "en";
+  const otherProduct = await getPublicProduct(otherLocale, slug);
+  const languages = otherProduct
+    ? { [locale]: `/${locale}/products/${slug}`, [otherLocale]: `/${otherLocale}/products/${slug}` }
+    : { [locale]: `/${locale}/products/${slug}` };
   return {
     title: product.seoTitle || product.title,
     description: product.seoDescription || product.shortDescription || product.description.slice(0, 160),
-    alternates: { canonical: `/${locale}/products/${slug}` },
+    alternates: { canonical: `/${locale}/products/${slug}`, languages },
     openGraph: { title: product.seoTitle || product.title, description: product.seoDescription || product.shortDescription, images: product.images[0]?.url ? [{ url: product.images[0].url, alt: product.images[0].alt }] : [] },
   };
 }
@@ -32,7 +37,7 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
   return (
     <main>
       <div className="store-container product-detail-wrap">
-        <nav aria-label="面包屑" className="breadcrumbs"><Link href={`/${locale}`}>{messages.common.home}</Link><span>/</span><Link href={`/${locale}/products`}>{messages.common.allProducts}</Link><span>/</span><span aria-current="page">{product.title}</span></nav>
+        <nav aria-label={messages.common.breadcrumbLabel} className="breadcrumbs"><Link href={`/${locale}`}>{messages.common.home}</Link><span>/</span><Link href={`/${locale}/products`}>{messages.common.allProducts}</Link><span>/</span><span aria-current="page">{product.title}</span></nav>
         <ProductExperience locale={locale} messages={messages.product} product={product} />
         <section className="product-description"><h2>{messages.product.detailsTitle}</h2><p>{product.description || messages.product.detailsFallback}</p>{product.categories.length > 0 ? <div className="detail-categories"><strong>{messages.product.categories}</strong>{product.categories.map((category) => <Link href={`/${locale}/categories/${category.slug}`} key={category.id}>{category.name}</Link>)}</div> : null}</section>
         <section className="related-products"><div className="section-heading"><div><h2>{messages.product.relatedTitle}</h2><p>{messages.product.relatedBody}</p></div><Link className="section-link" href={`/${locale}/products`}>{messages.common.viewAll}</Link></div><ProductGrid locale={locale} products={related} /></section>
