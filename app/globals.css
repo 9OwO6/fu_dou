@@ -46,6 +46,46 @@ button, summary { -webkit-tap-highlight-color: transparent; }
 
 .store-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .store-shell > main { flex: 1; }
+.store-shell[data-locale="en"] :is(
+  .brand-name,
+  .hero-copy h1,
+  .hero-copy h2,
+  .section-heading h1,
+  .section-heading h2,
+  .story-copy h1,
+  .story-copy h2,
+  .contact-band h1,
+  .contact-band h2,
+  .catalog-hero h1,
+  .product-title-block h1,
+  .cart-heading h1,
+  .order-heading h1,
+  .order-success-card h1,
+  .error-page h1
+) {
+  font-family: var(--font-display-en), "Trebuchet MS", sans-serif;
+  font-weight: 600;
+}
+.store-shell[data-locale="zh"] :is(
+  .brand-name,
+  .hero-copy h1,
+  .hero-copy h2,
+  .section-heading h1,
+  .section-heading h2,
+  .story-copy h1,
+  .story-copy h2,
+  .contact-band h1,
+  .contact-band h2,
+  .catalog-hero h1,
+  .product-title-block h1,
+  .cart-heading h1,
+  .order-heading h1,
+  .order-success-card h1,
+  .error-page h1
+) {
+  font-family: var(--font-display-zh), "Microsoft YaHei", sans-serif;
+  font-weight: 400;
+}
 .store-container { width: min(100% - 32px, 1280px); margin-inline: auto; }
 .announcement-bar { min-height: 34px; display: grid; place-items: center; padding: 6px 16px; background: var(--hb-yellow-soft); border-bottom: 1px solid #eee18b; font-size: 13px; text-align: center; }
 .store-header { height: 72px; position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--hb-canvas) 94%, transparent); border-bottom: 1px solid var(--hb-border-subtle); backdrop-filter: blur(14px); }

@@ -821,3 +821,23 @@
 - 当前 Phase 是否真正完成：本次独立顾客端优化的代码、数据库内容更新、桌面/手机布局和单图灯箱主路径已完成；多图真实数据路径保留上述一次人工验收项，不改变既有 Phase 5C/8/12 的独立验收状态。
 - 下一 Phase 是否具备启动条件：不受本次优化阻塞，仍按主计划与上方各 Phase 状态执行。
 - Git 与外部操作：云端开发 Supabase 已应用本次内容 migration；代码尚待本任务最后 commit/push，随后由现有 Vercel Git 集成自动部署。无需用户新增环境变量或外部账号配置。
+
+## 顾客端 Plan B 双语展示字体
+
+- 调整日期：2026-07-15（America/Vancouver）。
+- 对应范围：只优化英文与中文顾客展示界面的品牌标题字体；后台管理系统、正文、商品信息和功能控件保持现状。
+- 甲方决定：采用字体对比稿 Plan B。英文展示标题使用 `Fredoka`，中文展示标题使用 `ZCOOL KuaiLe / 站酷快乐体`。
+- 实现内容：通过 Next.js `next/font` 构建时自托管字体，并将字体变量仅挂载到 `/{locale}` 顾客端布局。展示字体应用于 Header 品牌名、Hero、首页模块、品牌故事、目录页、商品详情、购物车、订单请求和成功/错误页的主要标题；价格、规格、库存、按钮、导航、表单、长正文和后台继续使用既有无衬线字体。
+- 修改文件：`app/[locale]/layout.tsx`、`app/globals.css`、`docs/DESIGN_SYSTEM.md`、`docs/PROJECT_STATUS.md`。
+- 路由、组件和功能：无新增 URL 或组件；只增强既有顾客端双语标题字体表现。
+- 数据库、API、Storage、环境变量与依赖：无变化；没有 migration、Route Handler、bucket/policy、环境变量或 npm package 变更。
+- 自动检查：`npm.cmd run typecheck`、`npm.cmd run lint`、Vitest 9 个文件 36/36、Next.js 16.2.10 production build 与 `git diff --check` 全部通过；build 成功打包两款自托管字体并生成全部既有路由。
+- 真实浏览器验证：
+  - 英文 `/en` 桌面端 Header 品牌名与 Hero/模块标题的计算字体为 `Fredoka`；Hero 正文继续使用既有系统无衬线字体。页面标题、内容与真实商品图正常，console 无相关 warning/error。
+  - 通过真实语言切换进入中文 `/zh`，`html lang` 与 `data-locale` 均为 `zh`；Header 品牌名与 Hero/模块标题的计算字体为 `ZCOOL KuaiLe`、字重为原生 `400`，正文仍使用既有系统无衬线字体。
+  - 中文 390×844 手机视口的有效内容宽度与滚动宽度均为 `375`，Hero 标题完整换行，无裁切、重叠或页面级横向溢出。
+  - `/admin/login` 在 390px 下不存在公开端 `.store-shell`，后台标题仍计算为 `PingFang SC / Microsoft YaHei` 系统栈，证明字体范围隔离生效；console 无相关 warning/error。
+  - 截图保存在当前 Codex visualizations 目录：`plan-b-en-desktop.png`、`plan-b-zh-desktop.png`、`plan-b-zh-mobile.png`、`plan-b-admin-mobile.png`。
+- 未完成项、风险与有意延后：本次字体仅覆盖已批准的主要展示标题，不扩展到商品卡、功能控件或后台；若甲方后续要求调整字距、字号或更换字体，应作为新的视觉评审，不在本次范围内提前处理。
+- 当前任务是否真正完成：是。Plan B 的中英文公开端字体、正文隔离、后台隔离、桌面/手机渲染和 production build 均已验证。
+- Git 与外部操作：按用户明确要求，本次只提交上述 4 个字体相关文件并 push；工作区现有未跟踪商品/分类图片不纳入提交。
