@@ -41,7 +41,16 @@
       "shopping": "购物说明",
       "currency": "页面价格均为 CAD。",
       "confirmation": "库存、配送及最终安排由店主确认。",
-      "region": "温哥华 · BC · 加拿大"
+      "region": "列治文 · BC · 加拿大",
+      "visit": "欢迎来到列治文门店",
+      "openMap": "在 Google Maps 中打开",
+      "storefrontAlt": "位于列治文 Aberdeen Centre 商场内的 Happy Beans 福豆门店",
+      "connectEyebrow": "保持联系",
+      "connect": "关注 Happy Beans",
+      "connectBody": "扫描二维码关注新品动态，或直接联系我们。",
+      "wechatQrAlt": "Happy Beans 福豆微信二维码",
+      "instagramQrAlt": "Happy Beans 福豆 Instagram 账号 happy_beans2023 的二维码",
+      "scanWechat": "扫码添加微信"
     },
     "common": {
       "home": "首页",
@@ -102,6 +111,8 @@
       "categoryEmptyBody": "可以先从全部商品开始浏览。",
       "fulfillmentEmptyTitle": "履约安排正在更新",
       "fulfillmentEmptyBody": "提交订单请求前，请等待店主确认最新安排。"
+      ,"deliveryPosterAlt": "福豆配送服务：Richmond 市区满 35 加元免费配送；Richmond 市区外、Richmond Centre 15 公里以内满 55 加元免费配送；超过 15 公里请咨询客服。"
+      ,"deliveryPosterCaption": "Richmond 配送说明 · 具体地址请联系我们确认。"
     },
     "catalog": {
       "countSuffix": "件商品",
@@ -140,8 +151,12 @@
     "product": {
       "galleryLabel": "商品图片画廊",
       "imagePreparing": "商品图片准备中",
-      "openOriginal": "查看原图",
+      "openOriginal": "放大图片",
       "viewImage": "查看图片",
+      "closeImage": "关闭放大图片",
+      "previousImage": "上一张图片",
+      "nextImage": "下一张图片",
+      "imageCount": "第 {current} 张，共 {total} 张",
       "stockWithCount": "有库存",
       "variantSoldOut": "此规格已售罄",
       "chooseForStock": "选择完整规格后查看库存",

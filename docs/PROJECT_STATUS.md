@@ -795,3 +795,29 @@
 - 当前 Phase 是否真正完成：本次独立后台 UI 优化已完成并在线验证；它不改变既有 Phase 完成状态。
 - 下一 Phase 是否具备启动条件：不受本次 UI 调整阻塞，仍按 `HAPPY_BEANS完整开发计划.md` 与上方 Phase 状态执行。
 - Git 与外部操作：实现提交已推送至 `origin/main`，Vercel 自动部署后的线上版本已完成上述浏览器复验；无需用户新增账号、环境变量或手动部署。
+
+## 顾客端真实信息与图片交互优化
+
+- 调整日期：2026-07-15（America/Vancouver）。
+- 对应范围：在已完成的 Phase 6、9 与 Phase 12 顾客端基础上补充店铺真实信息和图片交互；未增加支付、顾客账号、配送计算、自由页面编辑或其他后续功能。
+- 完成内容：
+  - 使用正式 migration 将品牌故事更新为店主确认的英文文案和中文译文；前台按 3 个实际段落渲染，同时保留 `/admin/homepage` 后续编辑能力。
+  - Hero 真实商品图增加有机卵形遮罩、Intersection Observer 单次滚入淡入/上移动效和内部图片 `1.05` 悬停缩放，并尊重 `prefers-reduced-motion`。
+  - 履约区接入店主提供的 `delivery-service.jpg`。为避免丢失配送金额与范围信息，桌面使用完整竖版海报双栏，手机改为正文后完整海报，而非强制横向裁切。
+  - Footer 接入真实门店照片、地址 `4000 Number 3 Rd #2185, Richmond, BC V6X 0J8`、指定 Google Maps 链接、微信二维码与 Instagram 二维码/账号链接。
+  - 商品详情把“新标签页查看原图”改为当前页模态灯箱；支持打开动画、背景/按钮/Escape 关闭，多图时自动提供方向键、前后按钮和缩略图切换。
+- 修改文件：`app/[locale]/page.tsx`、`app/globals.css`、`components/layout/store-footer.tsx`、`components/product/product-experience.tsx`、`components/ui/reveal-media.tsx`、`messages/en.json`、`messages/zh.json`、`assets/image/delivery-service.jpg`、`assets/image/map_back.jpg`、`assets/image/wechat-qr.png`、`assets/image/instagram-qr.png`、`supabase/migrations/20260715214426_refresh_brand_story_content.sql`、`docs/DESIGN_SYSTEM.md`、`docs/PROJECT_STATUS.md`。
+- 路由与组件：无新增 URL；增强 `/en`、`/zh` 首页、所有公开页 Footer 和 `/{locale}/products/[slug]` 商品画廊；新增内部复用组件 `RevealMedia`。
+- 数据库：新增正式 migration `20260715214426_refresh_brand_story_content.sql`，只更新 `brand_story` 的 `en/zh` translation 文案；无表、函数、RLS、Storage policy 或 API 变化。migration 已从空库重建并应用到已连接云端开发 Supabase，远端/本地 migration history 一致。
+- API、Storage、环境变量与依赖：无变化；未新增 Route Handler、bucket、对象策略、环境变量或 npm package，也未读取或提交真实 secret。
+- 自动检查：本地 `db:reset` 成功；`db:test` 11 个文件、203/203 通过；`typecheck`、`lint`、Vitest 9 个文件 36/36、production build 与 `git diff --check` 均通过；远端 `db lint --linked --level warning` 为 `No schema errors found`。
+- 真实浏览器验证：
+  - 英文桌面 1509×1272 验证 Hero 进入视口后 `opacity: 1`、`translateY: 0`，有机图片遮罩、三段英文故事、完整竖版配送海报、门店照片/地址/地图与二维码布局均正常。
+  - 中文 390×844 验证正式中文标题、3 个故事段落、配送海报和 Footer 二维码；有效内容宽度与滚动宽度均为 375，无页面级横向溢出。
+  - 商品详情点击主图后，同一页面原生 `dialog` 正确打开；灯箱动画名为 `lightbox-panel-in`，图片 alt 正确，关闭按钮与 Escape 均可关闭。
+  - 使用干净浏览器标签重新加载 `/en`，页面有有效标题和内容、0 张缺失 alt 的图片、0 条 console warning/error。开发环境存在的 Next.js Dev Tools portal 不是错误覆盖层。
+- 人工验收步骤：访问 `/en` 和 `/zh`，滚动检查品牌故事与配送海报；在 Footer 点击地址确认 Google Maps 目标并用手机扫描两张二维码；进入有多张已登记图片的商品，点击主图后依次验证缩略图、左右按钮、方向键和 Escape。
+- 未完成项、风险与有意延后：当前云端公开测试商品只有 1 张图，因此真实浏览器已验证单图灯箱打开/关闭和动画，但没有为测试而修改店主商品数据；多图切换逻辑已实现并需在店主下次录入多图商品时完成一次数据驱动人工验收。配送海报本身含中文文字，英文页面通过英文 alt 和英文图注补充可访问说明，未修改用户提供的原图。
+- 当前 Phase 是否真正完成：本次独立顾客端优化的代码、数据库内容更新、桌面/手机布局和单图灯箱主路径已完成；多图真实数据路径保留上述一次人工验收项，不改变既有 Phase 5C/8/12 的独立验收状态。
+- 下一 Phase 是否具备启动条件：不受本次优化阻塞，仍按主计划与上方各 Phase 状态执行。
+- Git 与外部操作：云端开发 Supabase 已应用本次内容 migration；代码尚待本任务最后 commit/push，随后由现有 Vercel Git 集成自动部署。无需用户新增环境变量或外部账号配置。

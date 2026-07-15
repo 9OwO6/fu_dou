@@ -7,7 +7,9 @@ import { notFound } from "next/navigation";
 import applePlate from "@/assets/products/苹果盘子.jpg";
 import bearCup from "@/assets/products/小熊杯子.jpg";
 import logo from "@/assets/brand/happy-beans-logo-primary.jpg";
+import deliveryPoster from "@/assets/image/delivery-service.jpg";
 import { ProductGrid } from "@/components/product/product-grid";
+import { RevealMedia } from "@/components/ui/reveal-media";
 import { collectionMatches, listPublicCategories, listPublicProducts, type PublicProduct } from "@/lib/catalog/public-data";
 import { getPublicHomepageConfiguration } from "@/lib/homepage/data";
 import type { HomepageSection, ProductSectionType } from "@/lib/homepage/schema";
@@ -80,8 +82,8 @@ export default async function StorefrontHome({ params }: { params: Promise<{ loc
                 </div>
                 <div aria-label={messages.home.heroAlt} className="hero-visual">
                   <Image alt={locale === "en" ? "Happy Beans" : "Happy Beans 福豆"} className="hero-brand-mark" priority src={logo} />
-                  <div className="hero-photo hero-photo-main">{image?.url ? <img alt={image.alt} className="h-full w-full object-cover" src={image.url} /> : <Image alt={messages.home.applePlateAlt} fill priority sizes="(max-width: 767px) 70vw, 35vw" src={applePlate} />}</div>
-                  <div className="hero-photo hero-photo-small"><Image alt={messages.home.bearCupAlt} fill sizes="(max-width: 767px) 45vw, 22vw" src={bearCup} /></div>
+                  <RevealMedia className="hero-photo hero-photo-main">{image?.url ? <img alt={image.alt} className="h-full w-full object-cover" src={image.url} /> : <Image alt={messages.home.applePlateAlt} fill priority sizes="(max-width: 767px) 70vw, 35vw" src={applePlate} />}</RevealMedia>
+                  <RevealMedia className="hero-photo hero-photo-small"><Image alt={messages.home.bearCupAlt} fill sizes="(max-width: 767px) 45vw, 22vw" src={bearCup} /></RevealMedia>
                 </div>
               </div>
             </section>
@@ -111,7 +113,7 @@ export default async function StorefrontHome({ params }: { params: Promise<{ loc
         }
         if (section.sectionType === "brand_story") {
           const image = selectedImage(section, products);
-          return <section className="home-section" id="brand-story" key={section.sectionType}><div className="store-container story-grid"><div className="story-copy"><Heading>{translation.heading}</Heading><p>{translation.body}</p></div><div className="story-image">{image?.url ? <img alt={image.alt} className="h-full w-full object-cover" src={image.url} /> : <Image alt={messages.home.applePlateAlt} src={applePlate} />}</div></div></section>;
+          return <section className="home-section" id="brand-story" key={section.sectionType}><div className="store-container story-grid"><div className="story-copy"><Heading>{translation.heading}</Heading>{translation.body.split(/\n\s*\n/).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div><div className="story-image">{image?.url ? <img alt={image.alt} className="h-full w-full object-cover" src={image.url} /> : <Image alt={messages.home.applePlateAlt} src={applePlate} />}</div></div></section>;
         }
         if (section.sectionType === "fulfillment") {
           const content = translation.content;
@@ -119,7 +121,7 @@ export default async function StorefrontHome({ params }: { params: Promise<{ loc
             configuration.siteSettings.pickupEnabled ? { title: content.pickupTitle, body: content.pickupBody } : null,
             configuration.siteSettings.localDeliveryEnabled ? { title: content.deliveryTitle, body: content.deliveryBody } : null,
           ].filter((panel): panel is { title: string; body: string } => Boolean(panel?.title && panel.body));
-          return <section className="home-section home-section-blue" id="fulfillment" key={section.sectionType}><div className="store-container"><div className="section-heading"><div><Heading>{translation.heading}</Heading><p>{translation.body}</p>{configuration.siteSettings.serviceAreaDescription ? <p>{configuration.siteSettings.serviceAreaDescription}</p> : null}</div></div>{panels.length > 0 ? <div className="info-grid">{panels.map((panel) => <article className="info-panel" key={panel.title}><h3>{panel.title}</h3><p>{panel.body}</p></article>)}</div> : <div className="empty-state"><h2>{messages.home.fulfillmentEmptyTitle}</h2><p>{messages.home.fulfillmentEmptyBody}</p></div>}</div></section>;
+          return <section className="home-section home-section-blue" id="fulfillment" key={section.sectionType}><div className="store-container fulfillment-layout"><div className="fulfillment-copy"><div className="section-heading"><div><Heading>{translation.heading}</Heading><p>{translation.body}</p>{configuration.siteSettings.serviceAreaDescription ? <p>{configuration.siteSettings.serviceAreaDescription}</p> : null}</div></div>{panels.length > 0 ? <div className="info-grid">{panels.map((panel) => <article className="info-panel" key={panel.title}><h3>{panel.title}</h3><p>{panel.body}</p></article>)}</div> : <div className="empty-state"><h2>{messages.home.fulfillmentEmptyTitle}</h2><p>{messages.home.fulfillmentEmptyBody}</p></div>}</div><figure className="fulfillment-poster"><Image alt={messages.home.deliveryPosterAlt} placeholder="blur" sizes="(max-width: 767px) 90vw, 360px" src={deliveryPoster} /><figcaption>{messages.home.deliveryPosterCaption}</figcaption></figure></div></section>;
         }
         if (section.sectionType === "faq") {
           const items = translation.content.items ?? [];

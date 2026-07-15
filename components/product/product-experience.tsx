@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import logo from "@/assets/brand/happy-beans-logo-primary.jpg";
 import { useCart } from "@/components/cart/cart-provider";
@@ -14,6 +14,10 @@ type ProductMessages = {
   imagePreparing: string;
   openOriginal: string;
   viewImage: string;
+  closeImage: string;
+  previousImage: string;
+  nextImage: string;
+  imageCount: string;
   stockWithCount: string;
   variantSoldOut: string;
   chooseForStock: string;
@@ -62,8 +66,12 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
     return matching.length > 0 ? matching : product.images;
   }, [product.images, selectedVariant]);
   const [activeImageId, setActiveImageId] = useState<string | null>(product.images[0]?.id ?? null);
+  const [lightboxImageId, setLightboxImageId] = useState<string | null>(null);
+  const lightboxRef = useRef<HTMLDialogElement>(null);
 
   const activeImage = visibleImages.find((image) => image.id === activeImageId) ?? visibleImages[0];
+  const lightboxImage = visibleImages.find((image) => image.id === lightboxImageId) ?? activeImage;
+  const lightboxIndex = lightboxImage ? visibleImages.findIndex((image) => image.id === lightboxImage.id) : -1;
   const displayPrice = selectedVariant?.priceCad ?? product.minimumPrice;
   const displayCompareAt = selectedVariant?.isOnSale ? selectedVariant.compareAtPriceCad : product.compareAtPrice;
   const displayStock = selectedVariant?.stockQty;
@@ -71,6 +79,45 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
     ? items.find((item) => item.variantId === selectedVariant.id)?.quantity ?? 0
     : 0;
   const remainingStock = selectedVariant ? Math.max(0, selectedVariant.stockQty - quantityAlreadyInCart) : 0;
+
+  useEffect(() => {
+    const dialog = lightboxRef.current;
+    if (!dialog) return;
+    if (lightboxImageId && !dialog.open) dialog.showModal();
+    if (!lightboxImageId && dialog.open) dialog.close();
+  }, [lightboxImageId]);
+
+  function closeLightbox() {
+    lightboxRef.current?.close();
+    setLightboxImageId(null);
+  }
+
+  function moveLightbox(direction: -1 | 1) {
+    if (visibleImages.length < 2 || lightboxIndex < 0) return;
+    const nextIndex = (lightboxIndex + direction + visibleImages.length) % visibleImages.length;
+    const nextImage = visibleImages[nextIndex];
+    setLightboxImageId(nextImage.id);
+    setActiveImageId(nextImage.id);
+  }
+
+  useEffect(() => {
+    if (!lightboxImageId) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        lightboxRef.current?.close();
+        setLightboxImageId(null);
+        return;
+      }
+      if ((event.key !== "ArrowLeft" && event.key !== "ArrowRight") || visibleImages.length < 2 || lightboxIndex < 0) return;
+      const direction = event.key === "ArrowLeft" ? -1 : 1;
+      const nextIndex = (lightboxIndex + direction + visibleImages.length) % visibleImages.length;
+      const nextImage = visibleImages[nextIndex];
+      setLightboxImageId(nextImage.id);
+      setActiveImageId(nextImage.id);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxImageId, lightboxIndex, visibleImages]);
 
   function valueIsPossible(optionId: string, valueId: string) {
     const otherSelected = Object.entries(selected)
@@ -86,8 +133,8 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
     <div className="product-detail-grid">
       <section aria-label={messages.galleryLabel} className="product-gallery">
         <div className="gallery-main">
-          {activeImage?.url ? <img alt={activeImage.alt} src={activeImage.url} /> : <div className="gallery-placeholder"><Image alt="" src={logo} /><p>{messages.imagePreparing}</p></div>}
-          {activeImage?.url ? <a className="gallery-open" href={activeImage.url} rel="noreferrer" target="_blank">{messages.openOriginal}<span className="sr-only">{locale === "en" ? ": " : "："}{activeImage.alt}</span></a> : null}
+          {activeImage?.url ? <button aria-label={`${messages.openOriginal}${locale === "en" ? ": " : "："}${activeImage.alt}`} className="gallery-image-button" onClick={() => setLightboxImageId(activeImage.id)} type="button"><img alt={activeImage.alt} src={activeImage.url} /></button> : <div className="gallery-placeholder"><Image alt="" src={logo} /><p>{messages.imagePreparing}</p></div>}
+          {activeImage?.url ? <button className="gallery-open" onClick={() => setLightboxImageId(activeImage.id)} type="button">{messages.openOriginal}<span className="sr-only">{locale === "en" ? ": " : "："}{activeImage.alt}</span></button> : null}
         </div>
         {visibleImages.length > 1 ? (
           <div className="gallery-thumbnails" role="list">
@@ -98,6 +145,26 @@ export function ProductExperience({ product, messages, locale }: { product: Publ
             ))}
           </div>
         ) : null}
+        <dialog
+          aria-label={messages.galleryLabel}
+          className="image-lightbox"
+          onCancel={() => setLightboxImageId(null)}
+          onClick={(event) => { if (event.target === event.currentTarget) closeLightbox(); }}
+          onClose={() => setLightboxImageId(null)}
+          ref={lightboxRef}
+        >
+          <div className="image-lightbox-panel">
+            <div className="image-lightbox-toolbar">
+              <span aria-live="polite">{messages.imageCount.replace("{current}", String(lightboxIndex + 1)).replace("{total}", String(visibleImages.length))}</span>
+              <button aria-label={messages.closeImage} onClick={closeLightbox} type="button">×</button>
+            </div>
+            <div className="image-lightbox-stage">
+              {lightboxImage?.url ? <img alt={lightboxImage.alt} src={lightboxImage.url} /> : null}
+              {visibleImages.length > 1 ? <><button aria-label={messages.previousImage} className="image-lightbox-nav is-previous" onClick={() => moveLightbox(-1)} type="button">‹</button><button aria-label={messages.nextImage} className="image-lightbox-nav is-next" onClick={() => moveLightbox(1)} type="button">›</button></> : null}
+            </div>
+            {visibleImages.length > 1 ? <div className="image-lightbox-thumbnails">{visibleImages.map((image) => <button aria-label={`${messages.viewImage}${locale === "en" ? ": " : "："}${image.alt}`} aria-pressed={image.id === lightboxImage?.id} key={image.id} onClick={() => { setLightboxImageId(image.id); setActiveImageId(image.id); }} type="button">{image.url ? <img alt="" src={image.url} /> : <Image alt="" src={logo} />}</button>)}</div> : null}
+          </div>
+        </dialog>
       </section>
 
       <section className="product-purchase" aria-labelledby="product-title">

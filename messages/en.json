@@ -41,7 +41,16 @@
       "shopping": "Shopping notes",
       "currency": "All prices are shown in CAD.",
       "confirmation": "Stock, delivery, and final arrangements are confirmed by the shop owner.",
-      "region": "Vancouver · BC · Canada"
+      "region": "Richmond · BC · Canada",
+      "visit": "Visit our Richmond store",
+      "openMap": "Open in Google Maps",
+      "storefrontAlt": "The Happy Beans storefront inside Aberdeen Centre in Richmond",
+      "connectEyebrow": "Say hello",
+      "connect": "Stay connected",
+      "connectBody": "Scan a code to follow new arrivals or get in touch with us.",
+      "wechatQrAlt": "Happy Beans WeChat QR code",
+      "instagramQrAlt": "QR code for Happy Beans on Instagram at happy_beans2023",
+      "scanWechat": "Scan to connect"
     },
     "common": {
       "home": "Home",
@@ -102,6 +111,8 @@
       "categoryEmptyBody": "You can browse all products in the meantime.",
       "fulfillmentEmptyTitle": "Fulfillment details are being updated",
       "fulfillmentEmptyBody": "Please wait for the shop owner to confirm the latest arrangements before completing an order request."
+      ,"deliveryPosterAlt": "Happy Beans delivery service: free delivery over $35 in Richmond; free delivery over $55 within 15 kilometres of Richmond Centre; contact customer service for locations beyond 15 kilometres."
+      ,"deliveryPosterCaption": "Richmond delivery details · Please contact us to confirm your address."
     },
     "catalog": {
       "countSuffix": "products",
@@ -140,8 +151,12 @@
     "product": {
       "galleryLabel": "Product image gallery",
       "imagePreparing": "Product image coming soon",
-      "openOriginal": "View original image",
+      "openOriginal": "Enlarge image",
       "viewImage": "View image",
+      "closeImage": "Close enlarged image",
+      "previousImage": "Previous image",
+      "nextImage": "Next image",
+      "imageCount": "Image {current} of {total}",
       "stockWithCount": "In stock",
       "variantSoldOut": "This option is sold out",
       "chooseForStock": "Choose all options to check stock",
