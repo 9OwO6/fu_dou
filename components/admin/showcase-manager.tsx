@@ -1,0 +1,135 @@
+/* eslint-disable @next/next/no-img-element */
+"use client";
+
+import { useActionState, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  createShowcaseTagAction,
+  updateShowcaseItemAction,
+  updateShowcaseItemsStatusAction,
+  type ShowcaseActionState,
+} from "@/app/admin/(protected)/quick-listings/actions";
+import type { AdminShowcaseItem, ShowcaseTag } from "@/lib/showcase/data";
+
+const initialState: ShowcaseActionState = { status: "idle", message: "" };
+const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+
+function TagCreator() {
+  const [state, action, pending] = useActionState(createShowcaseTagAction, initialState);
+  return (
+    <details className="rounded-2xl border border-[#e5e0d7] bg-white p-5">
+      <summary className="cursor-pointer font-semibold">＋ 新建轻量标签</summary>
+      <form action={action} className="mt-4 grid gap-3 md:grid-cols-3">
+        <label className="text-sm font-semibold">中文名称<input className={`${inputClass} mt-1`} maxLength={60} name="nameZh" placeholder="例如：文具" required /></label>
+        <label className="text-sm font-semibold">English name（可不填）<input className={`${inputClass} mt-1`} maxLength={60} name="nameEn" placeholder="Stationery" /></label>
+        <label className="text-sm font-semibold">网址标识<input className={`${inputClass} mt-1`} maxLength={60} name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="stationery" required /></label>
+        <button className="min-h-11 rounded-xl border border-[#e2c200] bg-[#f7e653] px-4 py-2 font-semibold disabled:opacity-50 md:col-start-3" disabled={pending} type="submit">{pending ? "正在创建…" : "创建标签"}</button>
+      </form>
+      {state.message ? <p className={`mt-3 rounded-xl p-3 text-sm ${state.status === "error" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`} role="status">{state.message}</p> : null}
+    </details>
+  );
+}
+
+function ItemEditor({ item, tags }: { item: AdminShowcaseItem; tags: ShowcaseTag[] }) {
+  const [state, action, pending] = useActionState(updateShowcaseItemAction.bind(null, item.id), initialState);
+  return (
+    <details className="border-t border-slate-100 p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-sky-800">编辑名称、说明、价格和标签</summary>
+      <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-semibold">中文名称<input className={`${inputClass} mt-1`} defaultValue={item.titleZh} maxLength={120} name="titleZh" /></label>
+        <label className="text-sm font-semibold">English name<input className={`${inputClass} mt-1`} defaultValue={item.titleEn} maxLength={120} name="titleEn" /></label>
+        <label className="text-sm font-semibold sm:col-span-2">价格 CAD<input className={`${inputClass} mt-1`} defaultValue={item.priceCad ?? ""} inputMode="decimal" name="priceCad" /></label>
+        <label className="text-sm font-semibold">中文说明<textarea className={`${inputClass} mt-1 min-h-20`} defaultValue={item.descriptionZh} maxLength={500} name="descriptionZh" /></label>
+        <label className="text-sm font-semibold">English description<textarea className={`${inputClass} mt-1 min-h-20`} defaultValue={item.descriptionEn} maxLength={500} name="descriptionEn" /></label>
+        <fieldset className="sm:col-span-2"><legend className="text-sm font-semibold">标签</legend><div className="mt-2 flex flex-wrap gap-2">{tags.map((tag) => <label className="rounded-full border border-slate-200 px-3 py-1.5 text-sm" key={tag.id}><input className="mr-2" defaultChecked={item.tags.some((current) => current.id === tag.id)} name="tagIds" type="checkbox" value={tag.id} />{tag.nameZh || tag.slug}</label>)}</div></fieldset>
+        <button className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50 disabled:opacity-50 sm:col-start-2" disabled={pending} type="submit">{pending ? "正在保存…" : "保存可选内容"}</button>
+      </form>
+      {state.message ? <p className={`mt-3 rounded-xl p-3 text-sm ${state.status === "error" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`} role="status">{state.message}</p> : null}
+    </details>
+  );
+}
+
+export function ShowcaseManager({ initialItems, tags }: { initialItems: AdminShowcaseItem[]; tags: ShowcaseTag[] }) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [message, setMessage] = useState("");
+  const [pending, setPending] = useState(false);
+
+  const items = useMemo(() => initialItems.filter((item) => {
+    if (statusFilter !== "all" && item.availability !== statusFilter) return false;
+    const needle = query.trim().toLowerCase();
+    return !needle || item.shortCode.toLowerCase().includes(needle) || item.titleZh.toLowerCase().includes(needle) || item.titleEn.toLowerCase().includes(needle);
+  }), [initialItems, query, statusFilter]);
+
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function updateStatus(availability: "inquiry" | "sold" | "archived", ids = [...selected]) {
+    if (!ids.length) {
+      setMessage("请先选择至少一个展示商品。 ");
+      return;
+    }
+    setPending(true);
+    const result = await updateShowcaseItemsStatusAction(ids, availability);
+    setPending(false);
+    setMessage(result.message);
+    if (result.status === "success") {
+      setSelected(new Set());
+      router.refresh();
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <TagCreator />
+      <div className="grid gap-3 rounded-2xl border border-[#e5e0d7] bg-white p-4 md:grid-cols-[1fr_180px_auto]">
+        <label className="text-sm font-semibold">搜索<input className={`${inputClass} mt-1`} onChange={(event) => setQuery(event.target.value)} placeholder="商品编号或名称" type="search" value={query} /></label>
+        <label className="text-sm font-semibold">状态<select className={`${inputClass} mt-1`} onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}><option value="all">全部</option><option value="inquiry">请私信确认</option><option value="sold">已售完</option><option value="archived">已归档</option></select></label>
+        <button className="min-h-11 self-end rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold" onClick={() => setSelected(new Set(items.map((item) => item.id)))} type="button">选择当前结果</button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-[#a9dfe8] bg-[#f4fcfd] p-4">
+        <span className="mr-2 self-center text-sm font-semibold">已选 {selected.size} 项</span>
+        <button className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={pending} onClick={() => void updateStatus("inquiry")} type="button">恢复“请私信确认”</button>
+        <button className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50" disabled={pending} onClick={() => void updateStatus("sold")} type="button">标记已售完</button>
+        <button className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50" disabled={pending} onClick={() => void updateStatus("archived")} type="button">归档并隐藏</button>
+      </div>
+
+      {message ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-900" role="status">{message}</p> : null}
+
+      {items.length ? (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((item) => (
+            <article className={`relative overflow-hidden rounded-2xl border bg-white shadow-sm ${selected.has(item.id) ? "border-[#e2c200] ring-2 ring-[#f7e653]" : "border-[#e5e0d7]"}`} key={item.id}>
+              <label className="absolute z-10 m-3 flex size-10 items-center justify-center rounded-full bg-white/95 shadow"><span className="sr-only">选择 {item.shortCode}</span><input checked={selected.has(item.id)} onChange={() => toggle(item.id)} type="checkbox" /></label>
+              <div className="relative aspect-[4/5] bg-slate-100">
+                {item.images[0]?.signedUrl ? <img alt={item.images[0].altText} className="h-full w-full object-cover" src={item.images[0].signedUrl} /> : null}
+                <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${item.availability === "sold" ? "bg-rose-100 text-rose-800" : item.availability === "archived" ? "bg-slate-200 text-slate-700" : "bg-[#fff7c2] text-[#6d5800]"}`}>{item.availability === "sold" ? "已售完" : item.availability === "archived" ? "已归档" : "请私信确认"}</span>
+                {item.images.length > 1 ? <span className="absolute bottom-3 right-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white">{item.images.length} 张</span> : null}
+              </div>
+              <div className="p-4">
+                <p className="font-mono text-xs text-slate-500">{item.shortCode}</p>
+                <h2 className="mt-2 text-lg font-semibold">{item.titleZh || "未填写名称"}</h2>
+                {item.priceCad ? <p className="mt-2 font-semibold">CA${item.priceCad.toFixed(2)}</p> : <p className="mt-2 text-sm text-slate-500">价格请私信店主</p>}
+                <div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <span className="rounded-full bg-[#eef9fb] px-2.5 py-1 text-xs text-[#155f70]" key={tag.id}>{tag.nameZh || tag.slug}</span>)}</div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {item.availability !== "sold" ? <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("sold", [item.id])} type="button">一键售完</button> : <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("inquiry", [item.id])} type="button">恢复展示</button>}
+                  {item.availability !== "archived" ? <button className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700" onClick={() => void updateStatus("archived", [item.id])} type="button">归档</button> : null}
+                </div>
+              </div>
+              <ItemEditor item={item} tags={tags} />
+            </article>
+          ))}
+        </div>
+      ) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><h2 className="font-semibold">没有符合条件的展示商品</h2><p className="mt-2 text-slate-500">调整搜索与状态筛选，或发布一批新品。</p></div>}
+    </div>
+  );
+}

@@ -841,3 +841,28 @@
 - 未完成项、风险与有意延后：本次字体仅覆盖已批准的主要展示标题，不扩展到商品卡、功能控件或后台；若甲方后续要求调整字距、字号或更换字体，应作为新的视觉评审，不在本次范围内提前处理。
 - 当前任务是否真正完成：是。Plan B 的中英文公开端字体、正文隔离、后台隔离、桌面/手机渲染和 production build 均已验证。
 - Git 与外部操作：按用户明确要求，本次只提交上述 4 个字体相关文件并 push；工作区现有未跟踪商品/分类图片不纳入提交。
+
+## 快速上新与新品展示墙试验
+
+- 调整日期：2026-07-18（America/Vancouver）。
+- 对应范围：在现有正式商品体系旁新增独立轻量展示通道，解决少量、多款、快速售出的商品无法承受完整 SKU/规格/库存录入的问题；正式商品、购物车和订单请求保持不变。
+- 完成内容：
+  - 新增手机优先批量选图流程：每批最多 30 张，默认一图一商品，支持勾选合并多图、拆分、批量标签，以及选填中英文名称、说明和 CAD 价格。
+  - 新增展示管理墙：搜索、状态筛选、批量恢复/售完/归档、单品编辑和轻量标签创建；每件商品自动生成不可顺序枚举的 `HB-` 短编号。
+  - 新增中英文 `/[locale]/new-arrivals`：标签筛选、可选内容回退、询价提示、售完章、多图原生灯箱、方向键/缩略图与复制编号；Header 和 sitemap 已接入。
+  - 快速展示与正式 `products / variants / inventory / cart / order_requests` 完全隔离，不伪造库存，也不把“请私信确认”包装为可下单状态。
+- 主要修改文件：`supabase/migrations/20260718072835_quick_showcase_pilot.sql`、`supabase/tests/012_quick_showcase_pilot.test.sql`、`app/admin/(protected)/quick-listings/**`、`app/[locale]/new-arrivals/page.tsx`、`components/admin/quick-showcase-uploader.tsx`、`components/admin/showcase-manager.tsx`、`components/showcase/showcase-gallery.tsx`、`lib/showcase/**`、`messages/zh.json`、`messages/en.json`、`app/globals.css` 及相关导航/文档文件。
+- 数据库与 Storage：新增 8 张独立展示表、2 个受约束 enum、4 个 `security invoker` 管理 RPC、RLS/显式 GRANT、审计事件和 private `showcase-images` bucket。bucket 限制 JPEG/PNG/WebP、10 MiB，并使用管理员受控路径；公开读取只通过已登记对象的短时签名 URL。
+- API、环境变量与依赖：无公开 Route Handler；复用 Server Action、现有管理员会话和 Supabase publishable 配置。无新增环境变量、secret 或 npm 依赖，未读取/修改 `.env.local`。
+- 自动检查：本地 `db:reset` 成功；`db:test` 12 个文件、228/228 通过；`db:lint` 为 `No schema errors found`；`db:advisors` 为 `No issues found`；Vitest 10 个文件、40/40、`lint`、`typecheck`、Next.js 16.2.10 production build 全部通过。
+- 真实浏览器验证：
+  - 使用本地临时管理员完成三图选择、两图合并、批量水杯标签、可选双语名称/CAD 价格和发布；管理墙正确显示一件双图商品与一件无文字/无价格商品，console 无 warning/error。
+  - 中文新品墙显示 2 件商品、通用文案与询价提示；水杯筛选保留 2 件，礼物筛选显示受控空状态。双图灯箱可打开、前后切换、缩略图选择和复制编号。
+  - 英文新品墙只显示英文标题/标签或英文通用回退，没有把中文标题泄漏到英文端。
+  - 后台一键售完后，中文前台同一商品立即显示两处可访问的“已售完”状态和视觉售完章。
+  - 1440×900、1024×768、390×844 均验证 2 张卡片，三档均 `scrollWidth === clientWidth`；390px 桌面导航正确收起，无页面级横向溢出，console 只有 Next.js 开发/HMR 信息。
+- 人工验收步骤：店主用手机进入“快速上新”，选择一批真实新品照片，合并同一商品的不同角度并批量加标签；故意留空一件名称/价格后发布；分别检查中英文新品墙、标签、灯箱和编号；卖出后点“一键售完”，最后决定保留售完展示或归档隐藏。
+- 未完成项、风险与有意延后：本次没有应用 migration 到已连接云端 Supabase、没有部署 Vercel，也没有用店主真实账号/手机相册验证；公开列表当前一次读取最多 200 件，若后续长期积累应增加分页/“加载更多”和批次归档习惯。朋友圈/小红书自动同步、AI 自动识图写文案、拖拽重排、从展示商品一键转正式商品继续延后。
+- 当前任务是否真正完成：本地功能、数据安全、完整浏览器主路径与三档响应式均完成；云端上线和店主真实手机操作尚未完成，因此不能宣称线上已可用。
+- 下一阶段启动条件：可以进入“快速新品墙云端激活与店主试用”，但必须先备份并应用该 migration，再部署同一代码版本，最后由店主用真实手机完成一批上新/售完/归档验收。
+- Git 与外部操作：未 commit、未 push、未部署、未修改云端数据；需要用户另行明确授权后才能执行这些操作。无需新增环境变量或外部账号。

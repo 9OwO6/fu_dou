@@ -4,7 +4,7 @@ import { listPublicCategories, listPublicProducts } from "@/lib/catalog/public-d
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
-  const staticSuffixes = ["", "/products", "/collections/new", "/collections/featured", "/collections/sale"];
+  const staticSuffixes = ["", "/new-arrivals", "/products", "/collections/new", "/collections/featured", "/collections/sale"];
   const staticPaths = (["en", "zh"] as const).flatMap((locale) => staticSuffixes.map((suffix) => `/${locale}${suffix}`));
   try {
     const [productsEn, productsZh, categoriesEn, categoriesZh] = await Promise.all([

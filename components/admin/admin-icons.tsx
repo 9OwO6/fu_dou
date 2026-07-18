@@ -44,6 +44,10 @@ export function StoreIcon(props: IconProps) {
   return <IconBase {...props}><path d="m4 10 1.5-6h13L20 10M5 10v10h14V10" {...strokeProps} /><path d="M3 10h18M9 20v-6h6v6" {...strokeProps} /></IconBase>;
 }
 
+export function SparklesIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M12 3 13.5 8.5 19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" {...strokeProps} /><path d="m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6L19 16Z" {...strokeProps} /></IconBase>;
+}
+
 export function InfoIcon(props: IconProps) {
   return <IconBase {...props}><circle cx="12" cy="12" r="9" {...strokeProps} /><path d="M12 11v5M12 8h.01" {...strokeProps} /></IconBase>;
 }

@@ -16,6 +16,7 @@
       "homeLabel": "Happy Beans home",
       "navLabel": "Main navigation",
       "allProducts": "All products",
+      "quickShowcase": "Fresh drops",
       "new": "New",
       "featured": "Featured",
       "sale": "Sale",
@@ -27,6 +28,34 @@
       "mobileNavLabel": "Mobile navigation",
       "switchLanguage": "切换为中文"
       ,"cartCount": "{label}, {count} items"
+    },
+    "showcase": {
+      "title": "Fresh drops",
+      "seoDescription": "Browse the latest small-batch Happy Beans finds, then contact the shop owner with the item code to confirm details and availability.",
+      "kicker": "Fresh little finds",
+      "intro": "Small batches move quickly. Save the item code and contact us to confirm the latest details.",
+      "filterLabel": "Filter fresh drops by tag",
+      "all": "All",
+      "itemCount": "recent finds",
+      "stockNotice": "Availability and price are confirmed by the shop owner",
+      "emptyTitle": "No fresh finds under this tag yet",
+      "emptyBody": "Try another tag or come back soon for the next little drop.",
+      "clearFilter": "View all fresh drops",
+      "contactTitle": "Found something you love?",
+      "contactBody": "Copy the item code and contact Happy Beans through WeChat or Instagram in the footer. Small-batch items may sell quickly, so please wait for the shop owner's confirmation.",
+      "gallery": {
+        "unnamed": "A cute new find",
+        "askPrice": "Message for price",
+        "inquiry": "Small batch · Ask to confirm",
+        "sold": "Sold",
+        "imageCount": "{count} images",
+        "close": "Close fresh-drop image",
+        "previous": "Previous image",
+        "next": "Next image",
+        "copyCode": "Copy item code",
+        "copied": "Item code copied",
+        "copyFailed": "Please note the item code"
+      }
     },
     "footer": {
       "tagline": "Bring a little joy and ease into everyday life.",

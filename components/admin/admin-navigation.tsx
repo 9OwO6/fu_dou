@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { FolderIcon, HomeIcon, OrderIcon, ProductIcon, StoreIcon } from "./admin-icons";
+import { FolderIcon, HomeIcon, OrderIcon, ProductIcon, SparklesIcon, StoreIcon } from "./admin-icons";
 
 const links = [
   { href: "/admin", label: "后台概览", exact: true, icon: HomeIcon },
+  { href: "/admin/quick-listings", label: "快速上新", exact: false, icon: SparklesIcon },
   { href: "/admin/products", label: "商品管理", exact: false, icon: ProductIcon },
   { href: "/admin/categories", label: "分类管理", exact: false, icon: FolderIcon },
   { href: "/admin/orders", label: "订单请求", exact: false, icon: OrderIcon },

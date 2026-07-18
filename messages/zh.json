@@ -16,6 +16,7 @@
       "homeLabel": "Happy Beans 福豆首页",
       "navLabel": "主要导航",
       "allProducts": "全部商品",
+      "quickShowcase": "新鲜到店",
       "new": "新品",
       "featured": "推荐",
       "sale": "特价",
@@ -27,6 +28,34 @@
       "mobileNavLabel": "移动端导航",
       "switchLanguage": "切换为 English"
       ,"cartCount": "{label}，共 {count} 件"
+    },
+    "showcase": {
+      "title": "新鲜到店",
+      "seoDescription": "浏览 Happy Beans 最近到店的少量可爱新品，记下商品编号并向店主确认详情与库存。",
+      "kicker": "Fresh little finds",
+      "intro": "少量到货、更新很快。喜欢的话，记下商品编号联系我们确认吧。",
+      "filterLabel": "按新品标签筛选",
+      "all": "全部",
+      "itemCount": "件近期上新",
+      "stockNotice": "实际库存与价格以店主确认为准",
+      "emptyTitle": "这个标签下暂时没有新品",
+      "emptyBody": "换个标签看看，或者稍后再来逛逛。",
+      "clearFilter": "查看全部新品",
+      "contactTitle": "看中了哪一件？",
+      "contactBody": "复制商品编号，通过页面底部的微信或 Instagram 联系 Happy Beans。少量商品可能很快售完，请以店主回复为准。",
+      "gallery": {
+        "unnamed": "一件可爱新品",
+        "askPrice": "价格请私信",
+        "inquiry": "少量到货 · 请私信确认",
+        "sold": "已售完",
+        "imageCount": "{count} 张图片",
+        "close": "关闭新品图片",
+        "previous": "上一张图片",
+        "next": "下一张图片",
+        "copyCode": "复制商品编号",
+        "copied": "编号已复制",
+        "copyFailed": "请手动记下编号"
+      }
     },
     "footer": {
       "tagline": "把一点可爱和轻松，带进每天的生活。",

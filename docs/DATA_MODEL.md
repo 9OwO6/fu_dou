@@ -1,6 +1,6 @@
 # Happy Beans 数据模型与权限基线
 
-> 状态：Phase 3 数据基线、管理员审计、商品/订单流程、Phase 9 首页受控配置与 Phase 12 英文扩展均已在本地完成；数据库已从零重建，203 个 pgTAP 断言通过。
+> 状态：Phase 3 数据基线、管理员审计、商品/订单流程、Phase 9 首页受控配置、Phase 12 英文扩展与快速上新试验均已在本地完成；数据库已从零重建，228 个 pgTAP 断言通过。
 >
 > 迁移：全部正式历史位于 `supabase/migrations/`；本次英文扩展为 `20260715191638_phase_12_english_storefront.sql`。
 > 本地数据：`supabase/seed.sql`（仅 `DEMO-*` 开发数据）
@@ -260,3 +260,13 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - `admin_save_homepage(jsonb, jsonb)` 为 `security invoker` 原子 RPC：再次复核管理员、要求完整 10 模块、拒绝额外 key、重复排序、任意 CTA、无效 UUID/实体、超限数组、HTML 标记和错误 FAQ/履约 schema，并同步联系/履约站点设置与审计记录。
 - 匿名用户只读取启用模块；普通 authenticated 用户不能保存；管理员读写仍受 Server Action、RLS 和 RPC 三层约束。
 - `009_phase_9_homepage_operations.test.sql` 新增 12 个断言；当前 9 个数据库测试文件共 176/176 个断言通过。
+
+## 17. 快速上新独立展示模型
+
+- 正式 migration：`20260718072835_quick_showcase_pilot.sql`；该模型与正式 `products / variants / inventory` 完全独立，不进入购物车、订单请求或库存扣减流程。
+- `showcase_batches` 记录一次朋友圈式发布批次；`showcase_items` 保存短编号、可选 CAD 价格、`inquiry / sold / archived` 状态和排序；标题与说明由 `showcase_item_translations` 按 locale 分离。
+- `showcase_item_images` 与 `showcase_image_translations` 保存 private Storage 路径、顺序、尺寸和自动生成的双语 alt；一个展示商品支持 1–10 张图，每批最多 30 张。
+- `showcase_tags`、`showcase_tag_translations`、`showcase_item_tags` 提供轻量多标签筛选。初始标签为水杯、餐具、摆件、玩偶、地毯和礼物，管理员可继续受控新增。
+- `showcase-images` 是 10 MiB private bucket，仅允许 JPEG、PNG、WebP。管理员浏览器直传必须使用 `showcase/<batch UUID>/<image UUID>.<ext>`；Server Action 随后复核真实对象 MIME、扩展名与大小，再调用 `security invoker` RPC 原子登记数据和审计。失败时撤销已上传对象。
+- 匿名访问只读取已发布批次中未归档的展示商品、翻译、标签和已登记图片；private 图片通过短时签名 URL 展示。普通 authenticated 用户无管理写权限，管理员写入同时受 Server Action、RLS 与 RPC 复核。
+- `012_quick_showcase_pilot.test.sql` 新增 25 个断言，覆盖 schema/RLS、三类身份、private Storage、批量多图发布、可选价格/文字、自动 alt、编辑和状态可见性。当前 12 个数据库测试文件共 228/228 个断言通过。

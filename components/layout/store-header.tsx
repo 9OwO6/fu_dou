@@ -19,6 +19,7 @@ export function StoreHeader({ locale, announcement }: { locale: AppLocale; annou
   const base = `/${locale}`;
   const messages = getMessages(locale).public.header;
   const navItems = [
+    [messages.quickShowcase, `${base}/new-arrivals`],
     [messages.allProducts, `${base}/products`],
     [messages.new, `${base}/collections/new`],
     [messages.featured, `${base}/collections/featured`],
