@@ -862,7 +862,12 @@
   - 后台一键售完后，中文前台同一商品立即显示两处可访问的“已售完”状态和视觉售完章。
   - 1440×900、1024×768、390×844 均验证 2 张卡片，三档均 `scrollWidth === clientWidth`；390px 桌面导航正确收起，无页面级横向溢出，console 只有 Next.js 开发/HMR 信息。
 - 人工验收步骤：店主用手机进入“快速上新”，选择一批真实新品照片，合并同一商品的不同角度并批量加标签；故意留空一件名称/价格后发布；分别检查中英文新品墙、标签、灯箱和编号；卖出后点“一键售完”，最后决定保留售完展示或归档隐藏。
-- 未完成项、风险与有意延后：本次没有应用 migration 到已连接云端 Supabase、没有部署 Vercel，也没有用店主真实账号/手机相册验证；公开列表当前一次读取最多 200 件，若后续长期积累应增加分页/“加载更多”和批次归档习惯。朋友圈/小红书自动同步、AI 自动识图写文案、拖拽重排、从展示商品一键转正式商品继续延后。
-- 当前任务是否真正完成：本地功能、数据安全、完整浏览器主路径与三档响应式均完成；云端上线和店主真实手机操作尚未完成，因此不能宣称线上已可用。
-- 下一阶段启动条件：可以进入“快速新品墙云端激活与店主试用”，但必须先备份并应用该 migration，再部署同一代码版本，最后由店主用真实手机完成一批上新/售完/归档验收。
-- Git 与外部操作：未 commit、未 push、未部署、未修改云端数据；需要用户另行明确授权后才能执行这些操作。无需新增环境变量或外部账号。
+- 云端激活与生产部署：
+  - `supabase db push --linked --dry-run` 确认只包含 `20260718072835_quick_showcase_pilot.sql`，随后已应用到已连接云端项目；远端 migration history 与本地 13 条记录完全一致，远端 `db lint --linked --level warning` 为 `No schema errors found`。
+  - 远端 advisors 没有出现本次 migration 新增问题；仍保留既有 `admin_update_order_request` 受控 `security definer` 提醒和 Auth leaked-password protection 未启用提醒。
+  - 功能实现以 commit `626d06c` 推送到 `origin/main`，Vercel Git 集成部署 `dpl_7kqp5ANNm6LvnPjaAs3ipWx3xzBN` 已达到 Production Ready，并绑定 `https://happy-beans-fudou.vercel.app`。
+  - 生产浏览器确认中英文新品墙标题、6 个标签与空状态正常；已登录管理员会话可打开 `/admin/quick-listings`，管理入口和空管理墙正常。1440×900 与 390×844 均 `scrollWidth === clientWidth`，console 无 warning/error；Vercel 最近一小时无 error 或 HTTP 500 日志。
+- 未完成项、风险与有意延后：尚未向生产库上传测试商品，也未使用真实手机相册完成首批上新，以避免为技术验收污染店主数据；公开列表当前一次读取最多 200 件，若后续长期积累应增加分页/“加载更多”和批次归档习惯。朋友圈/小红书自动同步、AI 自动识图写文案、拖拽重排、从展示商品一键转正式商品继续延后。
+- 当前任务是否真正完成：代码、数据库 migration、Git push、Vercel Production 部署、公开页面与后台入口 smoke test 均完成；生产环境已经可用。首批真实图片上传、合并、售完与归档仍需由用户或店主在手机上进行数据型人工验收。
+- 下一阶段启动条件：可以直接进入店主试用和反馈迭代；不再需要数据库、Git 或 Vercel 激活操作。
+- Git 与外部操作：功能 commit `626d06c` 已 push 并部署；本次状态更新将以独立文档 commit 推送。无需新增环境变量或外部账号。工作区既有未跟踪分类图片和 `home_about_img.png` 仍未纳入提交。
