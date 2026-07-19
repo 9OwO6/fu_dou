@@ -900,3 +900,24 @@
 - 当前任务状态：代码、数据库 migration、Git push、Vercel Production 部署、三档响应式和线上真实商品编辑器 smoke test 均完成；Production 已可使用。店主实际选择文件并完成一次增删替换属于最后的数据型人工验收，不阻塞功能上线。
 - 下一阶段启动条件：图片编辑反馈迭代可以直接开始；无需新增环境变量、外部账号或依赖。
 - Git 与外部操作：功能 commit `775acfb` 已推送；本次最终状态记录将以独立文档 commit 推送。工作区既有未跟踪分类图片与 `home_about_img.png` 保持未提交。
+
+## 快速新品墙受控陈列方案
+
+- 调整日期：2026-07-19（America/Vancouver）。
+- 对应范围：只优化独立快速上新/新品墙的表现力；正式 `products / variants / inventory / cart / order_requests`、既有图片对象和询价边界保持不变。
+- 完成内容：
+  - 发布页新增三套整批陈列预览与选择：`阳光陈列架`、`快乐手账拼贴`、`今日主推`，并允许指定一件本批主推商品；未指定时使用第一件。
+  - 管理墙新增“批次陈列设置”，店主可对已发布批次调整方案和主推商品。
+  - 公开新品墙按批次分组；最新批次使用所选特色布局，较早批次自动回归稳定阳光陈列墙，避免多种视觉长期混排。
+  - 三套布局保留现有多图灯箱、短编号、价格/询价、标签、售完/归档语义和 reduced-motion 支持；桌面主推、手账错落和手机单列/双列均有受控响应式规则。
+- 数据库：新增 migration `20260719064752_quick_showcase_presentation_presets.sql`，包含受控 enum、批次默认方案、可空主推商品外键和一个 `security invoker` 管理 RPC；普通登录用户无权调用，跨批次主推引用会被拒绝并写入测试覆盖。
+- API、Storage、环境变量与依赖：无新增 Route Handler、Storage bucket/policy、环境变量、secret 或 npm 依赖；复用现有 Server Action、管理员会话和 private 展示图片。
+- 自动检查：本地 Supabase 从零重建成功；数据库 12 个文件 249/249 断言、schema lint、advisors 均通过。Vitest 10 个文件 43/43、lint、typecheck、production build 和 `git diff --check` 均通过。
+- 真实浏览器验证：使用只存在于本地的三件展示夹具完成管理员登录、从阳光陈列切换到快乐手账、刷新确认持久化、再切换今日主推；公开页同步改变布局，主推灯箱可打开。1440×900、1024×768、390×844 均无页面级横向溢出，手机端主推图片没有继承桌面固定高度。
+- 视觉对照：使用当前新品墙截图和真实商品照片生成三方案 QA 概念板；最终实现对照确认浅黄/浅蓝背景、主推层级、三件商品满幅利用、手账装饰克制度、横向主推结构和业务信息优先级一致。生成图只作本地 QA 参考，没有替换品牌 Logo 或商品图片。
+- 云端与 Production：`supabase db push --linked --dry-run` 确认只包含本次 migration，随后已成功应用；本地/远端 15 条 migration history 完全一致，远端 schema lint 无错误。本次 migration 未新增 advisor；只保留既有订单 RPC 和 Auth leaked-password protection 两项提醒。功能 commit `abbc7b6` 已推送至 `origin/main`，Vercel Git 部署 `dpl_CwowVHWnXsWZ1Cepa9DULXyphmTP` 已达到 Production Ready 并绑定正式域名。
+- Production 真实浏览器：中文与英文 `/new-arrivals` 均加载 3 件真实商品，中文最新批次已显示“阳光陈列架”的主推层级；已登录店主会话访问 `/admin/quick-listings`，三个真实批次均显示陈列效果、本批主推和保存控件。此次 smoke test 不修改生产商品或批次设置。
+- 未完成项与风险：为避免未经店主确认改变线上陈列，本次只验证控件和默认方案，没有在 Production 实际保存“快乐手账拼贴”或“今日主推”；店主仍应按下述步骤完成一次真实数据型验收。浏览器开发环境仅记录既有 Header Logo 的 Next.js LCP 建议，不是本次陈列功能错误。
+- 人工验收步骤：店主在 `/admin/quick-listings` 选择一个真实批次，依次保存“快乐手账拼贴”和“今日主推”，同时切换本批主推商品；刷新中英文新品墙，确认布局与主推同步变化，最后保存偏好的正式方案。
+- 当前任务状态：本地实现、数据库安全验证、云端 migration、Git push、Vercel Production、三档响应式和线上真实数据只读 smoke test 均完成；Production 已可使用。店主实际保存两套非默认方案属于最后的数据型人工验收，不阻塞功能上线。
+- 下一阶段启动条件：陈列效果反馈迭代可以直接开始；无需新增环境变量、外部账号或依赖。本状态记录将以独立文档 commit 推送；工作区既有未跟踪分类图片与 `home_about_img.png` 保持未提交。
