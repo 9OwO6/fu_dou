@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppLocale } from "@/lib/i18n/config";
 
 import { SHOWCASE_IMAGE_BUCKET } from "./validation";
-import type { ShowcasePresentationPreset } from "./validation";
+import type { ShowcaseDisplayPreset } from "./validation";
 
 type Translation = { locale: string; title?: string | null; description?: string | null; name?: string | null; alt_text?: string | null };
 type RawTag = { id: string; slug: string; is_visible: boolean; sort_order: number; showcase_tag_translations: Translation[] };
@@ -17,16 +17,27 @@ type RawItem = {
   showcase_batches: {
     id: string;
     published_at: string;
-    presentation_preset: ShowcasePresentationPreset;
-    featured_item_id: string | null;
   } | null;
   showcase_item_translations: Translation[];
   showcase_item_images: RawImage[];
   showcase_item_tags: Array<{ tag_id: string; showcase_tags: RawTag | null }>;
 };
+type RawDisplaySet = {
+  id: string;
+  presentation_preset: string;
+  featured_item_id: string | null;
+  showcase_display_set_items: Array<{ item_id: string; sort_order: number }>;
+};
 
 export type ShowcaseTag = { id: string; slug: string; name: string; nameZh: string; nameEn: string; sortOrder: number };
 export type ShowcaseImage = { id: string; signedUrl: string; altText: string; sortOrder: number; width: number | null; height: number | null };
+export type ShowcaseDisplaySet = {
+  id: string | null;
+  presentationPreset: ShowcaseDisplayPreset;
+  featuredItemId: string;
+  itemIds: string[];
+  isFallback: boolean;
+};
 
 export type PublicShowcaseItem = {
   id: string;
@@ -37,9 +48,6 @@ export type PublicShowcaseItem = {
   description: string | null;
   publishedAt: string;
   batchId: string;
-  presentationPreset: ShowcasePresentationPreset;
-  isFeatured: boolean;
-  isLatestBatch: boolean;
   tags: ShowcaseTag[];
   images: ShowcaseImage[];
 };
@@ -96,11 +104,48 @@ function mapImages(raw: RawImage[], locale: AppLocale, urls: Map<string, string>
 
 const itemSelect = `
   id, batch_id, short_code, availability, price_cad, created_at,
-  showcase_batches!showcase_items_batch_id_fkey(id, published_at, presentation_preset, featured_item_id),
+  showcase_batches!showcase_items_batch_id_fkey(id, published_at),
   showcase_item_translations(locale, title, description),
   showcase_item_images(id, storage_path, sort_order, width, height, showcase_image_translations(locale, alt_text)),
   showcase_item_tags(tag_id, showcase_tags(id, slug, is_visible, sort_order, showcase_tag_translations(locale, name)))
 `;
+
+export async function getActiveShowcaseDisplaySet(
+  items: Array<{ id: string; availability?: "inquiry" | "sold" | "archived" }>,
+): Promise<ShowcaseDisplaySet> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("showcase_display_sets")
+    .select("id, presentation_preset, featured_item_id, showcase_display_set_items(item_id, sort_order)")
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("当前新品展台暂时无法加载。");
+
+  const availableIds = new Set(items.filter((item) => item.availability !== "archived").map((item) => item.id));
+  const displaySet = data as unknown as RawDisplaySet | null;
+  const savedIds = displaySet?.showcase_display_set_items
+    .filter((entry) => availableIds.has(entry.item_id))
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((entry) => entry.item_id) ?? [];
+  const itemIds = savedIds.length >= 2 ? savedIds : items
+    .filter((item) => item.availability !== "archived")
+    .slice(0, 8)
+    .map((item) => item.id);
+  const featuredItemId = displaySet?.featured_item_id && itemIds.includes(displaySet.featured_item_id)
+    ? displaySet.featured_item_id
+    : itemIds[0] ?? "";
+  return {
+    id: savedIds.length >= 2 ? displaySet?.id ?? null : null,
+    presentationPreset: savedIds.length >= 2 && displaySet?.presentation_preset === "joyful_scrapbook"
+      ? "joyful_scrapbook"
+      : "sunny_shelf",
+    featuredItemId,
+    itemIds,
+    isFallback: savedIds.length < 2,
+  };
+}
 
 export async function listShowcaseTags(locale: AppLocale, includeHidden = false): Promise<ShowcaseTag[]> {
   const supabase = await createSupabaseServerClient();
@@ -126,7 +171,6 @@ export async function listPublicShowcaseItems(locale: AppLocale): Promise<Public
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
   const urls = await signedUrlMap(paths);
-  const latestBatchId = rows[0]?.batch_id;
   return rows.map((item) => {
     const localized = translation(item.showcase_item_translations, locale);
     return {
@@ -138,9 +182,6 @@ export async function listPublicShowcaseItems(locale: AppLocale): Promise<Public
       description: localized?.description ?? null,
       publishedAt: item.showcase_batches?.published_at ?? item.created_at,
       batchId: item.batch_id,
-      presentationPreset: item.showcase_batches?.presentation_preset ?? "sunny_shelf",
-      isFeatured: item.showcase_batches?.featured_item_id === item.id,
-      isLatestBatch: item.batch_id === latestBatchId,
       tags: item.showcase_item_tags
         .map((link) => link.showcase_tags)
         .filter((tag): tag is RawTag => Boolean(tag?.is_visible))
@@ -162,7 +203,6 @@ export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
   const urls = await signedUrlMap(paths);
-  const latestBatchId = rows[0]?.batch_id;
   return rows.map((item) => {
     const zh = translation(item.showcase_item_translations, "zh");
     const en = translation(item.showcase_item_translations, "en");
@@ -179,9 +219,6 @@ export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
       descriptionEn: en?.description ?? "",
       publishedAt: item.showcase_batches?.published_at ?? item.created_at,
       batchId: item.batch_id,
-      presentationPreset: item.showcase_batches?.presentation_preset ?? "sunny_shelf",
-      isFeatured: item.showcase_batches?.featured_item_id === item.id,
-      isLatestBatch: item.batch_id === latestBatchId,
       tags: item.showcase_item_tags
         .map((link) => link.showcase_tags)
         .filter((tag): tag is RawTag => Boolean(tag))

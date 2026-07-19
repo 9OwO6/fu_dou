@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isShowcaseDisplayPreset,
   isShowcasePresentationPreset,
+  parseShowcaseDisplaySet,
   parseShowcaseImageEditPayload,
   parseShowcasePublishPayload,
 } from "@/lib/showcase/validation";
@@ -60,6 +62,37 @@ describe("quick showcase publish validation", () => {
   it("rejects duplicate image identifiers across lightweight items", () => {
     const parsed = parseShowcasePublishPayload(batchId, JSON.stringify([validItem, { ...validItem, id: "b1000000-0000-4000-8000-000000000007" }]));
     expect(parsed).toMatchObject({ success: false });
+  });
+});
+
+describe("current showcase display set validation", () => {
+  const itemIds = [
+    "b1000000-0000-4000-8000-000000000011",
+    "b1000000-0000-4000-8000-000000000012",
+    "b1000000-0000-4000-8000-000000000013",
+  ];
+
+  it("offers only the two group-oriented stage presets", () => {
+    expect(isShowcaseDisplayPreset("sunny_shelf")).toBe(true);
+    expect(isShowcaseDisplayPreset("joyful_scrapbook")).toBe(true);
+    expect(isShowcaseDisplayPreset("today_spotlight")).toBe(false);
+  });
+
+  it("accepts an ordered 2–8 item stage with an included featured item", () => {
+    expect(parseShowcaseDisplaySet(itemIds, "joyful_scrapbook", itemIds[1])).toEqual({
+      success: true,
+      values: {
+        itemIds,
+        presentationPreset: "joyful_scrapbook",
+        featuredItemId: itemIds[1],
+      },
+    });
+  });
+
+  it("rejects singletons, duplicates, and a featured item outside the stage", () => {
+    expect(parseShowcaseDisplaySet(itemIds.slice(0, 1), "sunny_shelf", itemIds[0])).toMatchObject({ success: false });
+    expect(parseShowcaseDisplaySet([itemIds[0], itemIds[0]], "sunny_shelf", itemIds[0])).toMatchObject({ success: false });
+    expect(parseShowcaseDisplaySet(itemIds, "sunny_shelf", batchId)).toMatchObject({ success: false });
   });
 });
 

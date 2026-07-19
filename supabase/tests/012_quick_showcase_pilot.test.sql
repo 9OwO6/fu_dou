@@ -36,18 +36,19 @@ insert into showcase_test_payload values ('[
   }
 ]'::jsonb);
 
-select plan(46);
+select plan(54);
 
 select is(
   (select count(*)::integer from information_schema.tables where table_schema = 'public' and table_name in (
     'showcase_batches','showcase_items','showcase_item_translations','showcase_item_images',
-    'showcase_image_translations','showcase_tags','showcase_tag_translations','showcase_item_tags'
-  )), 8, 'quick showcase uses eight isolated public tables');
+    'showcase_image_translations','showcase_tags','showcase_tag_translations','showcase_item_tags',
+    'showcase_display_sets','showcase_display_set_items'
+  )), 10, 'quick showcase uses ten isolated public tables');
 
 select is(
   (select count(*)::integer from pg_class join pg_namespace on pg_namespace.oid = pg_class.relnamespace
    where nspname = 'public' and relname like 'showcase_%' and relrowsecurity),
-  8, 'every showcase table has RLS enabled');
+  10, 'every showcase table has RLS enabled');
 
 select results_eq(
   $query$select public, file_size_limit from storage.buckets where id = 'showcase-images'$query$,
@@ -58,17 +59,17 @@ select is(
   (select count(*)::integer from pg_proc join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
    where nspname = 'public' and proname in (
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
-     'admin_update_showcase_batch_presentation',
+     'admin_update_showcase_batch_presentation','admin_save_showcase_display_set',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
      'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
    ) and not prosecdef),
-  11, 'all showcase management functions use security invoker');
+  12, 'all showcase management functions use security invoker');
 
 select is(
   (select count(*)::integer from information_schema.routine_privileges where routine_schema = 'public' and grantee = 'anon'
    and routine_name in (
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
-     'admin_update_showcase_batch_presentation',
+     'admin_update_showcase_batch_presentation','admin_save_showcase_display_set',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
      'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
    )),
@@ -79,6 +80,7 @@ set local role authenticated;
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_tag('stationery','文具','Stationery')$command$), '42501', 'ordinary authenticated users cannot create tags');
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_batch('c1200000-0000-4000-8000-000000000100',(select items from showcase_test_payload))$command$), '42501', 'ordinary authenticated users cannot publish a showcase batch');
 select is(pg_temp.sqlstate_of($command$select public.admin_update_showcase_batch_presentation('c1200000-0000-4000-8000-000000000100','joyful_scrapbook','c1200000-0000-4000-8000-000000000101')$command$), '42501', 'ordinary authenticated users cannot change showcase presentation');
+select is(pg_temp.sqlstate_of($command$select public.admin_save_showcase_display_set(array['c1200000-0000-4000-8000-000000000101'::uuid,'c1200000-0000-4000-8000-000000000102'::uuid],'sunny_shelf','c1200000-0000-4000-8000-000000000101')$command$), '42501', 'ordinary authenticated users cannot publish a display set');
 select is(
   pg_temp.sqlstate_of($command$select public.admin_add_showcase_images('c1200000-0000-4000-8000-000000000101','[]'::jsonb)$command$),
   '42501',
@@ -123,6 +125,41 @@ select is(
   )$command$),
   '23514',
   'featured item must belong to the selected batch');
+
+select lives_ok(
+  $command$select public.admin_save_showcase_display_set(
+    array['c1200000-0000-4000-8000-000000000101'::uuid,'c1200000-0000-4000-8000-000000000102'::uuid],
+    'sunny_shelf',
+    'c1200000-0000-4000-8000-000000000101'
+  )$command$,
+  'admin can publish one cross-batch-ready display set');
+select results_eq(
+  $query$select presentation_preset::text, featured_item_id from public.showcase_display_sets where status = 'published'$query$,
+  $values$values ('sunny_shelf'::text, 'c1200000-0000-4000-8000-000000000101'::uuid)$values$,
+  'display set stores its controlled preset and featured item');
+select results_eq(
+  $query$select item_id, sort_order from public.showcase_display_set_items where display_set_id = (select id from public.showcase_display_sets where status = 'published') order by sort_order$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000101'::uuid, 0), ('c1200000-0000-4000-8000-000000000102'::uuid, 1)$values$,
+  'display set preserves explicit item order');
+select lives_ok(
+  $command$select public.admin_save_showcase_display_set(
+    array['c1200000-0000-4000-8000-000000000102'::uuid,'c1200000-0000-4000-8000-000000000101'::uuid],
+    'joyful_scrapbook',
+    'c1200000-0000-4000-8000-000000000102'
+  )$command$,
+  'publishing a replacement display set is atomic');
+select results_eq(
+  $query$select status::text, count(*) from public.showcase_display_sets group by status order by status::text$query$,
+  $values$values ('archived'::text, 1::bigint), ('published'::text, 1::bigint)$values$,
+  'replacement archives the previous set and leaves one published set');
+select results_eq(
+  $query$select presentation_preset::text, featured_item_id from public.showcase_display_sets where status = 'published'$query$,
+  $values$values ('joyful_scrapbook'::text, 'c1200000-0000-4000-8000-000000000102'::uuid)$values$,
+  'replacement display set becomes the active stage');
+select results_eq(
+  $query$select item_id from public.showcase_display_set_items where display_set_id = (select id from public.showcase_display_sets where status = 'published') order by sort_order$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000102'::uuid), ('c1200000-0000-4000-8000-000000000101'::uuid)$values$,
+  'replacement can reorder items independently of upload batches');
 
 select lives_ok(
   $command$select public.admin_add_showcase_images(
@@ -204,7 +241,7 @@ select is((select count(*)::integer from public.showcase_items), 1, 'anon sees p
 select is(pg_temp.sqlstate_of($command$insert into public.showcase_tags (slug) values ('blocked')$command$), '42501', 'anon cannot write showcase data');
 
 reset role;
-select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 14, 'successful showcase operations append fourteen audit events');
+select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 16, 'successful showcase operations append sixteen audit events');
 
 select * from finish();
 rollback;

@@ -189,3 +189,6 @@
 - 该试验是独立展示通道，不替代 `products / variants / cart / order-request`。若某个展示商品未来需要正式下单，仍需店主在现有正式商品后台另行建档。
 - `showcase_batches.presentation_preset` 保存三种固定陈列枚举，`featured_item_id` 只允许引用同批次商品；`admin_update_showcase_batch_presentation` 以 `security invoker`、管理员复核和同批约束完成原子更新与审计。
 - 发布页在批量上传前选择整批方案和主推商品；管理墙允许事后调整。公开 Gallery 按批次分组，只让最新批次使用特色布局，历史批次自动使用稳定默认墙。
+- 2026-07-19 的后续反馈迭代以 `showcase_display_sets` 和 `showcase_display_set_items` 取代上述“按批次决定前台布局”的读取路径：上传批次只负责发布原子性和追溯，唯一已发布展台独立保存两种受控布局、2–8 件跨批次商品、顺序与主推。旧批次陈列字段保留兼容，但新界面不再读取。
+- `admin_save_showcase_display_set` 使用 `security invoker`，再次复核管理员、商品未归档且所属批次已发布、数量/去重/主推关系，并原子归档旧展台、发布新展台和写审计。未保存展台时，读取层用最近最多 8 件可见商品生成不落库的建议组合，保证升级后现有内容立即成组。
+- 发布页现在只负责上传；管理墙提供跨批次选品、排序、主推和模板选择。公开 Gallery 只渲染一个整体舞台，未入选商品进入普通新品区；正式商品、库存、购物车和订单请求路径不变。

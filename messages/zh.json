@@ -54,7 +54,12 @@
         "next": "下一张图片",
         "copyCode": "复制商品编号",
         "copied": "编号已复制",
-        "copyFailed": "请手动记下编号"
+        "copyFailed": "请手动记下编号",
+        "stageKicker": "本期新鲜到店",
+        "stageTitle": "一起登场的新朋友",
+        "stageCount": "本期 {count} 件",
+        "moreTitle": "更多新鲜好物",
+        "moreBody": "继续看看店里最近到货的其他商品。"
       }
     },
     "footer": {

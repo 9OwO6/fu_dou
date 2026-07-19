@@ -6,53 +6,19 @@ import { useRouter } from "next/navigation";
 
 import {
   createShowcaseTagAction,
-  updateShowcaseBatchPresentationAction,
   deleteShowcaseImageAction,
   moveShowcaseImageAction,
   updateShowcaseItemAction,
   updateShowcaseItemsStatusAction,
   type ShowcaseActionState,
 } from "@/app/admin/(protected)/quick-listings/actions";
-import type { AdminShowcaseItem, ShowcaseTag } from "@/lib/showcase/data";
-import type { ShowcasePresentationPreset } from "@/lib/showcase/validation";
+import { ShowcaseStageEditor } from "@/components/admin/showcase-stage-editor";
+import type { AdminShowcaseItem, ShowcaseDisplaySet, ShowcaseTag } from "@/lib/showcase/data";
 import { uploadAndAddShowcaseImages, uploadAndReplaceShowcaseImage } from "@/lib/showcase/client-upload";
 import { MAX_SHOWCASE_IMAGES_PER_ITEM } from "@/lib/showcase/validation";
 
 const initialState: ShowcaseActionState = { status: "idle", message: "" };
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
-const presentationNames: Record<ShowcasePresentationPreset, string> = {
-  sunny_shelf: "阳光陈列架",
-  joyful_scrapbook: "快乐手账拼贴",
-  today_spotlight: "今日主推",
-};
-
-function BatchPresentationEditor({ items }: { items: AdminShowcaseItem[] }) {
-  const router = useRouter();
-  const first = items[0];
-  const [preset, setPreset] = useState<ShowcasePresentationPreset>(first.presentationPreset);
-  const [featuredItemId, setFeaturedItemId] = useState(items.find((item) => item.isFeatured)?.id ?? items[0]?.id ?? "");
-  const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
-
-  async function save() {
-    setPending(true);
-    const result = await updateShowcaseBatchPresentationAction(first.batchId, preset, featuredItemId || null);
-    setPending(false);
-    setMessage(result.message);
-    if (result.status === "success") router.refresh();
-  }
-
-  return (
-    <div className="grid gap-3 rounded-2xl border border-[#d8edf1] bg-[#f4fcfd] p-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
-      <div><p className="text-sm font-semibold text-[#155f70]">上新批次 · {new Date(first.publishedAt).toLocaleDateString("zh-CA")}</p><p className="mt-1 text-xs text-slate-600">{items.length} 件商品；前台最新一批使用特色陈列，较早批次自动回归稳定商品墙。</p></div>
-      <label className="text-sm font-semibold">陈列效果<select className={`${inputClass} mt-1`} data-testid={`showcase-presentation-preset-${first.batchId}`} onChange={(event) => setPreset(event.target.value as ShowcasePresentationPreset)} value={preset}>{Object.entries(presentationNames).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="text-sm font-semibold">本批主推<select className={`${inputClass} mt-1`} onChange={(event) => setFeaturedItemId(event.target.value)} value={featuredItemId}>{items.filter((item) => item.availability !== "archived").map((item) => <option key={item.id} value={item.id}>{item.titleZh || item.shortCode}</option>)}</select></label>
-      <button className="min-h-11 rounded-xl border border-[#e2c200] bg-[#f7e653] px-4 py-2 font-semibold disabled:opacity-50" data-testid={`showcase-presentation-save-${first.batchId}`} disabled={pending || !featuredItemId} onClick={() => void save()} type="button">{pending ? "保存中…" : "保存陈列"}</button>
-      {message ? <p className="text-sm text-[#155f70] lg:col-span-4" role="status">{message}</p> : null}
-    </div>
-  );
-}
-
 function TagCreator() {
   const [state, action, pending] = useActionState(createShowcaseTagAction, initialState);
   return (
@@ -181,7 +147,7 @@ function ItemEditor({ item, tags }: { item: AdminShowcaseItem; tags: ShowcaseTag
   );
 }
 
-export function ShowcaseManager({ initialItems, tags }: { initialItems: AdminShowcaseItem[]; tags: ShowcaseTag[] }) {
+export function ShowcaseManager({ initialDisplaySet, initialItems, tags }: { initialDisplaySet: ShowcaseDisplaySet; initialItems: AdminShowcaseItem[]; tags: ShowcaseTag[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
@@ -194,11 +160,6 @@ export function ShowcaseManager({ initialItems, tags }: { initialItems: AdminSho
     const needle = query.trim().toLowerCase();
     return !needle || item.shortCode.toLowerCase().includes(needle) || item.titleZh.toLowerCase().includes(needle) || item.titleEn.toLowerCase().includes(needle);
   }), [initialItems, query, statusFilter]);
-  const batches = useMemo(() => initialItems.reduce<AdminShowcaseItem[][]>((groups, item) => {
-    const existing = groups.find((group) => group[0]?.batchId === item.batchId);
-    if (existing) existing.push(item); else groups.push([item]);
-    return groups;
-  }, []), [initialItems]);
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -226,7 +187,7 @@ export function ShowcaseManager({ initialItems, tags }: { initialItems: AdminSho
   return (
     <div className="space-y-5">
       <TagCreator />
-      {batches.length ? <section className="space-y-3" aria-labelledby="showcase-presentation-heading"><div><h2 className="text-xl font-semibold" id="showcase-presentation-heading">批次陈列设置</h2><p className="mt-1 text-sm text-slate-600">选择整批效果和一件主推商品，不会影响正式商品体系。</p></div>{batches.map((batch) => <BatchPresentationEditor items={batch} key={batch[0].batchId} />)}</section> : null}
+      {initialItems.some((item) => item.availability !== "archived") ? <ShowcaseStageEditor initialDisplaySet={initialDisplaySet} items={initialItems} /> : null}
       <div className="grid gap-3 rounded-2xl border border-[#e5e0d7] bg-white p-4 md:grid-cols-[1fr_180px_auto]">
         <label className="text-sm font-semibold">搜索<input className={`${inputClass} mt-1`} onChange={(event) => setQuery(event.target.value)} placeholder="商品编号或名称" type="search" value={query} /></label>
         <label className="text-sm font-semibold">状态<select className={`${inputClass} mt-1`} onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}><option value="all">全部</option><option value="inquiry">请私信确认</option><option value="sold">已售完</option><option value="archived">已归档</option></select></label>

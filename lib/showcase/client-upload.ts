@@ -11,7 +11,6 @@ import {
   SHOWCASE_IMAGE_BUCKET,
   validateClientImageFile,
   type ShowcasePublishItemInput,
-  type ShowcasePresentationPreset,
 } from "./validation";
 
 export type PendingShowcaseImage = {
@@ -40,8 +39,6 @@ export function releaseShowcasePreviews(items: Array<{ images: PendingShowcaseIm
 export async function uploadAndPublishShowcaseBatch(
   batchId: string,
   items: Array<Omit<ShowcasePublishItemInput, "images"> & { images: PendingShowcaseImage[] }>,
-  presentationPreset: ShowcasePresentationPreset,
-  featuredItemId: string | null,
 ) {
   const supabase = createSupabaseBrowserClient();
   const uploadedPaths: string[] = [];
@@ -74,8 +71,6 @@ export async function uploadAndPublishShowcaseBatch(
   const result = await publishShowcaseBatchAction(
     batchId,
     JSON.stringify(payload),
-    presentationPreset,
-    featuredItemId,
   );
   if (result.status === "error" && uploadedPaths.length) {
     await supabase.storage.from(SHOWCASE_IMAGE_BUCKET).remove(uploadedPaths);

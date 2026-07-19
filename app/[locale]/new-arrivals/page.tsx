@@ -6,7 +6,7 @@ import { BrandEmptyMark } from "@/components/layout/brand-empty-mark";
 import { ShowcaseGallery } from "@/components/showcase/showcase-gallery";
 import { isSupportedLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/get-messages";
-import { listPublicShowcaseItems, listShowcaseTags } from "@/lib/showcase/data";
+import { getActiveShowcaseDisplaySet, listPublicShowcaseItems, listShowcaseTags } from "@/lib/showcase/data";
 
 type Params = Promise<{ locale: string }>;
 type SearchParams = Promise<{ tag?: string }>;
@@ -27,6 +27,7 @@ export default async function NewArrivalsPage({ params, searchParams }: { params
   if (!isSupportedLocale(locale)) notFound();
   const messages = getMessages(locale).public.showcase;
   const [allItems, tags] = await Promise.all([listPublicShowcaseItems(locale), listShowcaseTags(locale)]);
+  const displaySet = await getActiveShowcaseDisplaySet(allItems);
   const activeTag = tags.some((tag) => tag.slug === query.tag) ? query.tag : undefined;
   const items = activeTag ? allItems.filter((item) => item.tags.some((tag) => tag.slug === activeTag)) : allItems;
 
@@ -46,7 +47,7 @@ export default async function NewArrivalsPage({ params, searchParams }: { params
       </section>
       <section className="store-container showcase-content">
         <div className="showcase-result-row"><p><strong>{items.length}</strong> {messages.itemCount}</p><p>{messages.stockNotice}</p></div>
-        {items.length ? <ShowcaseGallery items={items} labels={messages.gallery} locale={locale} /> : <div className="showcase-empty"><BrandEmptyMark /><h2>{messages.emptyTitle}</h2><p>{messages.emptyBody}</p><Link className="button-primary" href={`/${locale}/new-arrivals`}>{messages.clearFilter}</Link></div>}
+        {items.length ? <ShowcaseGallery displaySet={displaySet} items={items} labels={messages.gallery} locale={locale} /> : <div className="showcase-empty"><BrandEmptyMark /><h2>{messages.emptyTitle}</h2><p>{messages.emptyBody}</p><Link className="button-primary" href={`/${locale}/new-arrivals`}>{messages.clearFilter}</Link></div>}
       </section>
       <section className="showcase-contact" id="showcase-contact"><div className="store-container"><span aria-hidden="true">✦</span><div><h2>{messages.contactTitle}</h2><p>{messages.contactBody}</p></div></div></section>
     </main>

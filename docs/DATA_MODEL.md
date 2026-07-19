@@ -273,3 +273,6 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - `012_quick_showcase_pilot.test.sql` 现有 46 个断言，覆盖 schema/RLS、三类身份、private Storage、批量多图发布、可选价格/文字、自动 alt、图片增删替换/封面排序、补偿恢复、受控陈列方案和状态可见性。当前 12 个数据库测试文件共 249/249 个断言通过。
 - migration `20260719064752_quick_showcase_presentation_presets.sql` 新增 `showcase_presentation_preset` 枚举（`sunny_shelf / joyful_scrapbook / today_spotlight`），并为 `showcase_batches` 增加非空默认方案与可空主推商品外键。删除主推商品时外键自动置空，不影响批次或其他展示商品。
 - `admin_update_showcase_batch_presentation` 只授予 `authenticated` 执行，函数内部再次要求管理员，并拒绝跨批次主推引用；更新方案、主推和审计记录在同一事务完成。
+- migration `20260719075245_showcase_display_sets.sql` 新增 `showcase_display_sets` 与 `showcase_display_set_items`：前者保存受控布局、主推和发布状态，后者保存 2–8 件跨上传批次商品的明确顺序；唯一部分索引保证同一时间只有一个已发布展台。两表都启用 RLS。
+- `admin_save_showcase_display_set` 只接受 `sunny_shelf / joyful_scrapbook` 两种整组布局，拒绝单件、超过 8 件、重复商品、组外主推、归档商品和未发布批次；发布新展台时原子归档此前已发布展台。
+- `012_quick_showcase_pilot.test.sql` 已增至 54 个断言；当前 12 个数据库测试文件共 257/257 个断言通过。

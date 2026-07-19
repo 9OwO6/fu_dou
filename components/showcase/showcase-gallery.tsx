@@ -3,15 +3,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { PublicShowcaseItem } from "@/lib/showcase/data";
+import type { PublicShowcaseItem, ShowcaseDisplaySet } from "@/lib/showcase/data";
 
 type CopyState = "idle" | "copied" | "failed";
 
 export function ShowcaseGallery({
+  displaySet,
   items,
   locale,
   labels,
 }: {
+  displaySet: ShowcaseDisplaySet;
   items: PublicShowcaseItem[];
   locale: "en" | "zh";
   labels: {
@@ -26,6 +28,11 @@ export function ShowcaseGallery({
     copyCode: string;
     copied: string;
     copyFailed: string;
+    stageKicker: string;
+    stageTitle: string;
+    stageCount: string;
+    moreTitle: string;
+    moreBody: string;
   };
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -65,46 +72,55 @@ export function ShowcaseGallery({
     }
   }
 
-  const batches = items.reduce<Array<{ id: string; items: PublicShowcaseItem[] }>>((groups, item) => {
-    const existing = groups.find((group) => group.id === item.batchId);
-    if (existing) existing.items.push(item);
-    else groups.push({ id: item.batchId, items: [item] });
-    return groups;
-  }, []);
+  const rank = new Map(displaySet.itemIds.map((id, index) => [id, index]));
+  const stagedItems = items
+    .filter((item) => rank.has(item.id))
+    .sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  const hasStage = stagedItems.length >= 2;
+  const stagedIds = new Set(hasStage ? stagedItems.map((item) => item.id) : []);
+  const remainingItems = items.filter((item) => !stagedIds.has(item.id));
+
+  function card(item: PublicShowcaseItem, index: number, inStage: boolean) {
+    const cover = item.images[0];
+    const featured = inStage && item.id === displaySet.featuredItemId;
+    return (
+      <article className={`showcase-card ${inStage ? "is-stage-card" : ""} ${featured ? "is-featured" : ""}`} key={item.id} style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}>
+        <button aria-label={`${item.title || labels.unnamed} · ${item.shortCode}`} className="showcase-card-open" onClick={() => open(item)} type="button">
+          <span className="showcase-card-media">
+            {cover?.signedUrl ? <img alt={cover.altText} loading={inStage && index < 6 ? "eager" : "lazy"} src={cover.signedUrl} /> : <span className="showcase-image-fallback" />}
+            {item.images.length > 1 ? <span className="showcase-image-count">{labels.imageCount.replace("{count}", String(item.images.length))}</span> : null}
+            {item.availability === "sold" ? <span className="showcase-sold-stamp">{labels.sold}</span> : null}
+          </span>
+          <span className="showcase-card-copy">
+            <span className="showcase-card-code">{item.shortCode}</span>
+            <strong>{item.title || labels.unnamed}</strong>
+            <span className="showcase-card-price">{item.priceCad ? new Intl.NumberFormat(locale === "zh" ? "zh-CA" : "en-CA", { style: "currency", currency: "CAD" }).format(item.priceCad) : labels.askPrice}</span>
+            <span className="showcase-card-status">{item.availability === "sold" ? labels.sold : labels.inquiry}</span>
+          </span>
+        </button>
+        {item.tags.length ? <div className="showcase-card-tags">{item.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}</div> : null}
+      </article>
+    );
+  }
 
   return (
     <>
-      <div className="showcase-batches">
-        {batches.map((batch, batchIndex) => {
-          const preset = batch.items[0]?.isLatestBatch ? batch.items[0].presentationPreset : "sunny_shelf";
-          const orderedItems = [...batch.items].sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
-          return <section className={`showcase-batch is-${preset} ${batchIndex > 0 ? "is-archive" : ""}`} key={batch.id}>
-            <div className="showcase-grid">
-              {orderedItems.map((item, index) => {
-          const cover = item.images[0];
-          return (
-            <article className={`showcase-card ${item.isFeatured || index === 0 ? "is-featured" : ""}`} key={item.id} style={{ animationDelay: `${Math.min(batchIndex * 3 + index, 8) * 45}ms` }}>
-              <button aria-label={`${item.title || labels.unnamed} · ${item.shortCode}`} className="showcase-card-open" onClick={() => open(item)} type="button">
-                <span className="showcase-card-media">
-                  {cover?.signedUrl ? <img alt={cover.altText} loading={batchIndex === 0 && index < 6 ? "eager" : "lazy"} src={cover.signedUrl} /> : <span className="showcase-image-fallback" />}
-                  {item.images.length > 1 ? <span className="showcase-image-count">{labels.imageCount.replace("{count}", String(item.images.length))}</span> : null}
-                  {item.availability === "sold" ? <span className="showcase-sold-stamp">{labels.sold}</span> : null}
-                </span>
-                <span className="showcase-card-copy">
-                  <span className="showcase-card-code">{item.shortCode}</span>
-                  <strong>{item.title || labels.unnamed}</strong>
-                  <span className="showcase-card-price">{item.priceCad ? new Intl.NumberFormat(locale === "zh" ? "zh-CA" : "en-CA", { style: "currency", currency: "CAD" }).format(item.priceCad) : labels.askPrice}</span>
-                  <span className="showcase-card-status">{item.availability === "sold" ? labels.sold : labels.inquiry}</span>
-                </span>
-              </button>
-              {item.tags.length ? <div className="showcase-card-tags">{item.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}</div> : null}
-            </article>
-          );
-              })}
-            </div>
-          </section>;
-        })}
-      </div>
+      {hasStage ? (
+        <section className={`showcase-stage is-${displaySet.presentationPreset}`}>
+          <header className="showcase-stage-header">
+            <div><p>{labels.stageKicker}</p><h2>{labels.stageTitle}</h2></div>
+            <span>{labels.stageCount.replace("{count}", String(stagedItems.length))}</span>
+          </header>
+          <div className="showcase-stage-layout" data-count={Math.min(stagedItems.length, 8)}>{stagedItems.map((item, index) => card(item, index, true))}</div>
+        </section>
+      ) : null}
+
+      {remainingItems.length ? (
+        <section className={`showcase-more ${hasStage ? "has-stage" : ""}`}>
+          {hasStage ? <header><h2>{labels.moreTitle}</h2><p>{labels.moreBody}</p></header> : null}
+          <div className="showcase-grid">{remainingItems.map((item, index) => card(item, index, false))}</div>
+        </section>
+      ) : null}
 
       <dialog className="showcase-dialog" onClose={() => setActiveItem(null)} ref={dialogRef}>
         {activeItem ? (

@@ -54,7 +54,12 @@
         "next": "Next image",
         "copyCode": "Copy item code",
         "copied": "Item code copied",
-        "copyFailed": "Please note the item code"
+        "copyFailed": "Please note the item code",
+        "stageKicker": "Fresh this edition",
+        "stageTitle": "New friends, arriving together",
+        "stageCount": "{count} in this edit",
+        "moreTitle": "More fresh finds",
+        "moreBody": "Keep browsing other recent arrivals at the shop."
       }
     },
     "footer": {

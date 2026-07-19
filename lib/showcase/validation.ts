@@ -12,13 +12,17 @@ export const MAX_SHOWCASE_ITEMS = 30;
 export const MAX_SHOWCASE_IMAGES = 30;
 export const MAX_SHOWCASE_IMAGES_PER_ITEM = 10;
 export const MAX_SHOWCASE_TAGS_PER_ITEM = 10;
+export const MIN_SHOWCASE_DISPLAY_ITEMS = 2;
+export const MAX_SHOWCASE_DISPLAY_ITEMS = 8;
 export const SHOWCASE_PRESENTATION_PRESETS = [
   "sunny_shelf",
   "joyful_scrapbook",
   "today_spotlight",
 ] as const;
+export const SHOWCASE_DISPLAY_PRESETS = ["sunny_shelf", "joyful_scrapbook"] as const;
 
 export type ShowcasePresentationPreset = typeof SHOWCASE_PRESENTATION_PRESETS[number];
+export type ShowcaseDisplayPreset = typeof SHOWCASE_DISPLAY_PRESETS[number];
 
 export { MAX_PRODUCT_IMAGE_BYTES, validateClientImageFile };
 
@@ -62,6 +66,33 @@ export function isValidShowcaseTagSlug(value: string) {
 
 export function isShowcasePresentationPreset(value: string): value is ShowcasePresentationPreset {
   return SHOWCASE_PRESENTATION_PRESETS.includes(value as ShowcasePresentationPreset);
+}
+
+export function isShowcaseDisplayPreset(value: string): value is ShowcaseDisplayPreset {
+  return SHOWCASE_DISPLAY_PRESETS.includes(value as ShowcaseDisplayPreset);
+}
+
+export function parseShowcaseDisplaySet(
+  itemIds: string[],
+  presentationPreset: string,
+  featuredItemId: string,
+): ValidationResult<{ itemIds: string[]; presentationPreset: ShowcaseDisplayPreset; featuredItemId: string }> {
+  const uniqueItemIds = [...new Set(itemIds)];
+  if (
+    itemIds.length < MIN_SHOWCASE_DISPLAY_ITEMS
+    || itemIds.length > MAX_SHOWCASE_DISPLAY_ITEMS
+    || uniqueItemIds.length !== itemIds.length
+    || itemIds.some((id) => !isUuid(id))
+  ) {
+    return { success: false, message: `当前新品展台需要选择 ${MIN_SHOWCASE_DISPLAY_ITEMS}–${MAX_SHOWCASE_DISPLAY_ITEMS} 件不同商品。` };
+  }
+  if (!isShowcaseDisplayPreset(presentationPreset)) {
+    return { success: false, message: "请选择有效的新品展台模板。" };
+  }
+  if (!isUuid(featuredItemId) || !uniqueItemIds.includes(featuredItemId)) {
+    return { success: false, message: "主推商品必须属于当前新品展台。" };
+  }
+  return { success: true, values: { itemIds: uniqueItemIds, presentationPreset, featuredItemId } };
 }
 
 export function parseShowcasePublishPayload(

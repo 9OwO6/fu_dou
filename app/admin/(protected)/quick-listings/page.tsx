@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ShowcaseManager } from "@/components/admin/showcase-manager";
-import { listAdminShowcaseItems, listShowcaseTags } from "@/lib/showcase/data";
+import { getActiveShowcaseDisplaySet, listAdminShowcaseItems, listShowcaseTags } from "@/lib/showcase/data";
 
 export const metadata = { title: "快速上新管理 | Happy Beans" };
 
@@ -11,6 +11,7 @@ export default async function QuickListingsPage({ searchParams }: { searchParams
     listAdminShowcaseItems(),
     listShowcaseTags("zh", true),
   ]);
+  const displaySet = await getActiveShowcaseDisplaySet(items);
   return (
     <section aria-labelledby="quick-listings-heading" className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -24,8 +25,8 @@ export default async function QuickListingsPage({ searchParams }: { searchParams
           <Link className="min-h-11 rounded-xl border border-[#e2c200] bg-[#f7e653] px-5 py-3 font-semibold text-[#292c30] shadow-sm hover:bg-[#f3dc2f]" href="/admin/quick-listings/new">＋ 快速发布新品</Link>
         </div>
       </div>
-      {notice === "published" ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800" role="status">本批新品已发布，并进入中英文新品墙。</p> : null}
-      <ShowcaseManager initialItems={items} tags={tags} />
+      {notice === "published" ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800" role="status">本批新品已发布。你可以在下方把它们加入“当前新品展台”。</p> : null}
+      <ShowcaseManager initialDisplaySet={displaySet} initialItems={items} tags={tags} />
     </section>
   );
 }
