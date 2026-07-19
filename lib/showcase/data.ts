@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppLocale } from "@/lib/i18n/config";
 
 import { SHOWCASE_IMAGE_BUCKET } from "./validation";
+import type { ShowcasePresentationPreset } from "./validation";
 
 type Translation = { locale: string; title?: string | null; description?: string | null; name?: string | null; alt_text?: string | null };
 type RawTag = { id: string; slug: string; is_visible: boolean; sort_order: number; showcase_tag_translations: Translation[] };
@@ -12,7 +13,13 @@ type RawItem = {
   availability: "inquiry" | "sold" | "archived";
   price_cad: number | string | null;
   created_at: string;
-  showcase_batches: { published_at: string } | null;
+  batch_id: string;
+  showcase_batches: {
+    id: string;
+    published_at: string;
+    presentation_preset: ShowcasePresentationPreset;
+    featured_item_id: string | null;
+  } | null;
   showcase_item_translations: Translation[];
   showcase_item_images: RawImage[];
   showcase_item_tags: Array<{ tag_id: string; showcase_tags: RawTag | null }>;
@@ -29,6 +36,10 @@ export type PublicShowcaseItem = {
   title: string | null;
   description: string | null;
   publishedAt: string;
+  batchId: string;
+  presentationPreset: ShowcasePresentationPreset;
+  isFeatured: boolean;
+  isLatestBatch: boolean;
   tags: ShowcaseTag[];
   images: ShowcaseImage[];
 };
@@ -84,8 +95,8 @@ function mapImages(raw: RawImage[], locale: AppLocale, urls: Map<string, string>
 }
 
 const itemSelect = `
-  id, short_code, availability, price_cad, created_at,
-  showcase_batches(published_at),
+  id, batch_id, short_code, availability, price_cad, created_at,
+  showcase_batches!showcase_items_batch_id_fkey(id, published_at, presentation_preset, featured_item_id),
   showcase_item_translations(locale, title, description),
   showcase_item_images(id, storage_path, sort_order, width, height, showcase_image_translations(locale, alt_text)),
   showcase_item_tags(tag_id, showcase_tags(id, slug, is_visible, sort_order, showcase_tag_translations(locale, name)))
@@ -115,6 +126,7 @@ export async function listPublicShowcaseItems(locale: AppLocale): Promise<Public
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
   const urls = await signedUrlMap(paths);
+  const latestBatchId = rows[0]?.batch_id;
   return rows.map((item) => {
     const localized = translation(item.showcase_item_translations, locale);
     return {
@@ -125,6 +137,10 @@ export async function listPublicShowcaseItems(locale: AppLocale): Promise<Public
       title: localized?.title ?? null,
       description: localized?.description ?? null,
       publishedAt: item.showcase_batches?.published_at ?? item.created_at,
+      batchId: item.batch_id,
+      presentationPreset: item.showcase_batches?.presentation_preset ?? "sunny_shelf",
+      isFeatured: item.showcase_batches?.featured_item_id === item.id,
+      isLatestBatch: item.batch_id === latestBatchId,
       tags: item.showcase_item_tags
         .map((link) => link.showcase_tags)
         .filter((tag): tag is RawTag => Boolean(tag?.is_visible))
@@ -146,6 +162,7 @@ export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
   const urls = await signedUrlMap(paths);
+  const latestBatchId = rows[0]?.batch_id;
   return rows.map((item) => {
     const zh = translation(item.showcase_item_translations, "zh");
     const en = translation(item.showcase_item_translations, "en");
@@ -161,6 +178,10 @@ export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
       descriptionZh: zh?.description ?? "",
       descriptionEn: en?.description ?? "",
       publishedAt: item.showcase_batches?.published_at ?? item.created_at,
+      batchId: item.batch_id,
+      presentationPreset: item.showcase_batches?.presentation_preset ?? "sunny_shelf",
+      isFeatured: item.showcase_batches?.featured_item_id === item.id,
+      isLatestBatch: item.batch_id === latestBatchId,
       tags: item.showcase_item_tags
         .map((link) => link.showcase_tags)
         .filter((tag): tag is RawTag => Boolean(tag))

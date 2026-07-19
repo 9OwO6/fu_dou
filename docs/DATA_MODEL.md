@@ -270,4 +270,6 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - `showcase-images` 是 10 MiB private bucket，仅允许 JPEG、PNG、WebP。首次发布使用 `showcase/<batch UUID>/<image UUID>.<ext>`；后续图片编辑使用 `showcase/<item UUID>/<image UUID>.<ext>`。Server Action 会复核真实对象 MIME、扩展名与大小，再调用 `security invoker` RPC 原子登记数据和审计；新增/替换失败时撤销新对象。
 - 图片管理 RPC 支持追加、删除、设为封面和原位替换，并在数据库内维持 `0..n-1` 连续顺序、1–10 张上限和双语自动 alt。删除/替换先提交数据库资料，再删除 private Storage 旧对象；文件删除失败时由受限补偿 RPC 恢复原资料，避免公开展示引用不存在的对象。
 - 匿名访问只读取已发布批次中未归档的展示商品、翻译、标签和已登记图片；private 图片通过短时签名 URL 展示。普通 authenticated 用户无管理写权限，管理员写入同时受 Server Action、RLS 与 RPC 复核。
-- `012_quick_showcase_pilot.test.sql` 现有 41 个断言，覆盖 schema/RLS、三类身份、private Storage、批量多图发布、可选价格/文字、自动 alt、图片增删替换/封面排序、补偿恢复和状态可见性。当前 12 个数据库测试文件共 244/244 个断言通过。
+- `012_quick_showcase_pilot.test.sql` 现有 46 个断言，覆盖 schema/RLS、三类身份、private Storage、批量多图发布、可选价格/文字、自动 alt、图片增删替换/封面排序、补偿恢复、受控陈列方案和状态可见性。当前 12 个数据库测试文件共 249/249 个断言通过。
+- migration `20260719064752_quick_showcase_presentation_presets.sql` 新增 `showcase_presentation_preset` 枚举（`sunny_shelf / joyful_scrapbook / today_spotlight`），并为 `showcase_batches` 增加非空默认方案与可空主推商品外键。删除主推商品时外键自动置空，不影响批次或其他展示商品。
+- `admin_update_showcase_batch_presentation` 只授予 `authenticated` 执行，函数内部再次要求管理员，并拒绝跨批次主推引用；更新方案、主推和审计记录在同一事务完成。

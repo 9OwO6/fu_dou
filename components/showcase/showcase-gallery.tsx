@@ -65,16 +65,28 @@ export function ShowcaseGallery({
     }
   }
 
+  const batches = items.reduce<Array<{ id: string; items: PublicShowcaseItem[] }>>((groups, item) => {
+    const existing = groups.find((group) => group.id === item.batchId);
+    if (existing) existing.items.push(item);
+    else groups.push({ id: item.batchId, items: [item] });
+    return groups;
+  }, []);
+
   return (
     <>
-      <div className="showcase-grid">
-        {items.map((item, index) => {
+      <div className="showcase-batches">
+        {batches.map((batch, batchIndex) => {
+          const preset = batch.items[0]?.isLatestBatch ? batch.items[0].presentationPreset : "sunny_shelf";
+          const orderedItems = [...batch.items].sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
+          return <section className={`showcase-batch is-${preset} ${batchIndex > 0 ? "is-archive" : ""}`} key={batch.id}>
+            <div className="showcase-grid">
+              {orderedItems.map((item, index) => {
           const cover = item.images[0];
           return (
-            <article className="showcase-card" key={item.id} style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
+            <article className={`showcase-card ${item.isFeatured || index === 0 ? "is-featured" : ""}`} key={item.id} style={{ animationDelay: `${Math.min(batchIndex * 3 + index, 8) * 45}ms` }}>
               <button aria-label={`${item.title || labels.unnamed} · ${item.shortCode}`} className="showcase-card-open" onClick={() => open(item)} type="button">
                 <span className="showcase-card-media">
-                  {cover?.signedUrl ? <img alt={cover.altText} loading={index < 6 ? "eager" : "lazy"} src={cover.signedUrl} /> : <span className="showcase-image-fallback" />}
+                  {cover?.signedUrl ? <img alt={cover.altText} loading={batchIndex === 0 && index < 6 ? "eager" : "lazy"} src={cover.signedUrl} /> : <span className="showcase-image-fallback" />}
                   {item.images.length > 1 ? <span className="showcase-image-count">{labels.imageCount.replace("{count}", String(item.images.length))}</span> : null}
                   {item.availability === "sold" ? <span className="showcase-sold-stamp">{labels.sold}</span> : null}
                 </span>
@@ -88,6 +100,9 @@ export function ShowcaseGallery({
               {item.tags.length ? <div className="showcase-card-tags">{item.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}</div> : null}
             </article>
           );
+              })}
+            </div>
+          </section>;
         })}
       </div>
 

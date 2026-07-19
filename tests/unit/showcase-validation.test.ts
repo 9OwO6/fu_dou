@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseShowcaseImageEditPayload, parseShowcasePublishPayload } from "@/lib/showcase/validation";
+import {
+  isShowcasePresentationPreset,
+  parseShowcaseImageEditPayload,
+  parseShowcasePublishPayload,
+} from "@/lib/showcase/validation";
 
 const batchId = "b1000000-0000-4000-8000-000000000001";
 const validItem = {
@@ -20,6 +24,12 @@ const validItem = {
 };
 
 describe("quick showcase publish validation", () => {
+  it("accepts only the three controlled presentation presets", () => {
+    expect(isShowcasePresentationPreset("sunny_shelf")).toBe(true);
+    expect(isShowcasePresentationPreset("joyful_scrapbook")).toBe(true);
+    expect(isShowcasePresentationPreset("today_spotlight")).toBe(true);
+    expect(isShowcasePresentationPreset("custom-css")).toBe(false);
+  });
   it("accepts optional text and price while preserving valid images", () => {
     const parsed = parseShowcasePublishPayload(batchId, JSON.stringify([
       validItem,

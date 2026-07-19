@@ -36,7 +36,7 @@ insert into showcase_test_payload values ('[
   }
 ]'::jsonb);
 
-select plan(41);
+select plan(46);
 
 select is(
   (select count(*)::integer from information_schema.tables where table_schema = 'public' and table_name in (
@@ -58,15 +58,17 @@ select is(
   (select count(*)::integer from pg_proc join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
    where nspname = 'public' and proname in (
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
+     'admin_update_showcase_batch_presentation',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
      'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
    ) and not prosecdef),
-  10, 'all showcase management functions use security invoker');
+  11, 'all showcase management functions use security invoker');
 
 select is(
   (select count(*)::integer from information_schema.routine_privileges where routine_schema = 'public' and grantee = 'anon'
    and routine_name in (
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
+     'admin_update_showcase_batch_presentation',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
      'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
    )),
@@ -76,6 +78,7 @@ select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-0000000
 set local role authenticated;
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_tag('stationery','文具','Stationery')$command$), '42501', 'ordinary authenticated users cannot create tags');
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_batch('c1200000-0000-4000-8000-000000000100',(select items from showcase_test_payload))$command$), '42501', 'ordinary authenticated users cannot publish a showcase batch');
+select is(pg_temp.sqlstate_of($command$select public.admin_update_showcase_batch_presentation('c1200000-0000-4000-8000-000000000100','joyful_scrapbook','c1200000-0000-4000-8000-000000000101')$command$), '42501', 'ordinary authenticated users cannot change showcase presentation');
 select is(
   pg_temp.sqlstate_of($command$select public.admin_add_showcase_images('c1200000-0000-4000-8000-000000000101','[]'::jsonb)$command$),
   '42501',
@@ -92,6 +95,7 @@ select results_eq($query$select count(*) from public.showcase_tag_translations w
 
 select lives_ok($command$select public.admin_create_showcase_batch('c1200000-0000-4000-8000-000000000100',(select items from showcase_test_payload))$command$, 'admin publishes a multi-item multi-image batch atomically');
 select is((select count(*)::integer from public.showcase_batches where id = 'c1200000-0000-4000-8000-000000000100'), 1, 'one published batch exists');
+select is((select presentation_preset::text from public.showcase_batches where id = 'c1200000-0000-4000-8000-000000000100'), 'sunny_shelf', 'new batches start with the safe sunny shelf presentation');
 select is((select count(*)::integer from public.showcase_items where batch_id = 'c1200000-0000-4000-8000-000000000100'), 2, 'both lightweight items exist');
 select is((select count(*)::integer from public.showcase_item_images), 3, 'all three image records exist');
 select is((select count(*)::integer from public.showcase_image_translations), 6, 'every image receives zh and en accessible alt text');
@@ -99,6 +103,26 @@ select is((select count(*)::integer from public.showcase_item_tags where item_id
 select ok((select price_cad is null from public.showcase_items where id = 'c1200000-0000-4000-8000-000000000102'), 'price is genuinely optional');
 select ok((select short_code ~ '^HB-[0-9A-F]{12}$' from public.showcase_items where id = 'c1200000-0000-4000-8000-000000000101'), 'item receives a stable public short code');
 select ok((select alt_text ~ 'Happy Beans new arrival HB-[0-9A-F]{12}' from public.showcase_image_translations where image_id = 'c1200000-0000-4000-8000-000000000203' and locale = 'en'), 'unnamed images receive a safe language-specific generated alt');
+
+select lives_ok(
+  $command$select public.admin_update_showcase_batch_presentation(
+    'c1200000-0000-4000-8000-000000000100',
+    'joyful_scrapbook',
+    'c1200000-0000-4000-8000-000000000101'
+  )$command$,
+  'admin can choose a controlled batch presentation and featured item');
+select results_eq(
+  $query$select presentation_preset::text, featured_item_id from public.showcase_batches where id = 'c1200000-0000-4000-8000-000000000100'$query$,
+  $values$values ('joyful_scrapbook'::text, 'c1200000-0000-4000-8000-000000000101'::uuid)$values$,
+  'presentation and featured item persist together');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_update_showcase_batch_presentation(
+    'c1200000-0000-4000-8000-000000000100',
+    'today_spotlight',
+    'c1200000-0000-4000-8000-000000000999'
+  )$command$),
+  '23514',
+  'featured item must belong to the selected batch');
 
 select lives_ok(
   $command$select public.admin_add_showcase_images(
@@ -180,7 +204,7 @@ select is((select count(*)::integer from public.showcase_items), 1, 'anon sees p
 select is(pg_temp.sqlstate_of($command$insert into public.showcase_tags (slug) values ('blocked')$command$), '42501', 'anon cannot write showcase data');
 
 reset role;
-select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 13, 'successful showcase operations append thirteen audit events');
+select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 14, 'successful showcase operations append fourteen audit events');
 
 select * from finish();
 rollback;

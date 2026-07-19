@@ -12,6 +12,13 @@ export const MAX_SHOWCASE_ITEMS = 30;
 export const MAX_SHOWCASE_IMAGES = 30;
 export const MAX_SHOWCASE_IMAGES_PER_ITEM = 10;
 export const MAX_SHOWCASE_TAGS_PER_ITEM = 10;
+export const SHOWCASE_PRESENTATION_PRESETS = [
+  "sunny_shelf",
+  "joyful_scrapbook",
+  "today_spotlight",
+] as const;
+
+export type ShowcasePresentationPreset = typeof SHOWCASE_PRESENTATION_PRESETS[number];
 
 export { MAX_PRODUCT_IMAGE_BYTES, validateClientImageFile };
 
@@ -51,6 +58,10 @@ function dimension(value: unknown) {
 
 export function isValidShowcaseTagSlug(value: string) {
   return value.length <= 60 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+export function isShowcasePresentationPreset(value: string): value is ShowcasePresentationPreset {
+  return SHOWCASE_PRESENTATION_PRESETS.includes(value as ShowcasePresentationPreset);
 }
 
 export function parseShowcasePublishPayload(

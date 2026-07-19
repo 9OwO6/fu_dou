@@ -187,3 +187,5 @@
 - `/[locale]/new-arrivals` 使用匿名 RLS 读取已发布展示数据并生成短时签名 URL。标签筛选保存在 `?tag=`，语言切换保留 query；卡片支持多图原生 `dialog`、键盘方向键、缩略图和复制短编号。
 - 中文与英文展示按各自 translation 读取；缺少展示标题时使用语言对应的受控通用文案，不把中文标题泄漏到英文端。已归档商品从公开端隐藏，已售完商品保留并显示售完章。
 - 该试验是独立展示通道，不替代 `products / variants / cart / order-request`。若某个展示商品未来需要正式下单，仍需店主在现有正式商品后台另行建档。
+- `showcase_batches.presentation_preset` 保存三种固定陈列枚举，`featured_item_id` 只允许引用同批次商品；`admin_update_showcase_batch_presentation` 以 `security invoker`、管理员复核和同批约束完成原子更新与审计。
+- 发布页在批量上传前选择整批方案和主推商品；管理墙允许事后调整。公开 Gallery 按批次分组，只让最新批次使用特色布局，历史批次自动使用稳定默认墙。

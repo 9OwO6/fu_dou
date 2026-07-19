@@ -16,6 +16,7 @@ import {
   MAX_SHOWCASE_IMAGES,
   MAX_SHOWCASE_IMAGES_PER_ITEM,
   validateClientImageFile,
+  type ShowcasePresentationPreset,
 } from "@/lib/showcase/validation";
 
 type DraftItem = {
@@ -30,6 +31,16 @@ type DraftItem = {
 };
 
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+const presentationOptions: Array<{
+  value: ShowcasePresentationPreset;
+  name: string;
+  description: string;
+  previewClass: string;
+}> = [
+  { value: "sunny_shelf", name: "阳光陈列架", description: "主推大卡配合整齐商品墙，适合日常稳定上新。", previewClass: "from-[#fff7c2] via-white to-[#eef9fb]" },
+  { value: "joyful_scrapbook", name: "快乐手账拼贴", description: "照片、贴纸和轻微错落，更有 Happy Beans 的小店个性。", previewClass: "from-[#ffeaf2] via-[#fffdf8] to-[#e8f8d8]" },
+  { value: "today_spotlight", name: "今日主推", description: "一件大幅主视觉带动本批新品，适合限定和少量到货。", previewClass: "from-[#dff6fa] via-[#fff7c2] to-white" },
+];
 
 function newDraft(image: PendingShowcaseImage, tagIds: string[] = []): DraftItem {
   return {
@@ -51,6 +62,8 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchTagId, setBatchTagId] = useState(tags[0]?.id ?? "");
+  const [presentationPreset, setPresentationPreset] = useState<ShowcasePresentationPreset>("sunny_shelf");
+  const [featuredItemId, setFeaturedItemId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -129,6 +142,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
     next.splice(firstIndex, 0, merged);
     replaceItems(next);
     setSelected(new Set([merged.id]));
+    if (picked.some((item) => item.id === featuredItemId)) setFeaturedItemId(merged.id);
     setMessage(`已将 ${picked.length} 个商品合并为一个多图商品。`);
   }
 
@@ -142,12 +156,14 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
     next.splice(index, 0, ...split);
     replaceItems(next);
     setSelected(new Set());
+    if (featuredItemId === item.id) setFeaturedItemId(split[0]?.id ?? null);
     setMessage(`已拆分为 ${split.length} 个单图商品。`);
   }
 
   function removeItem(item: DraftItem) {
     item.images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     replaceItems(items.filter((current) => current.id !== item.id));
+    if (featuredItemId === item.id) setFeaturedItemId(null);
     setSelected((current) => {
       const next = new Set(current);
       next.delete(item.id);
@@ -173,7 +189,12 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
     }
     setIsPublishing(true);
     setMessage("正在上传并安全登记本批新品，请不要关闭页面…");
-    const result = await uploadAndPublishShowcaseBatch(crypto.randomUUID(), items);
+    const result = await uploadAndPublishShowcaseBatch(
+      crypto.randomUUID(),
+      items,
+      presentationPreset,
+      featuredItemId ?? items[0]?.id ?? null,
+    );
     setIsPublishing(false);
     setMessage(result.message);
     if (result.status === "success") {
@@ -204,6 +225,28 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
 
       {items.length ? (
         <section className="space-y-4">
+          <div className="rounded-2xl border border-[#e5e0d7] bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="text-xl font-semibold">2. 选择本批陈列效果</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">效果应用于整批新品；只能选择受控模板，不会修改正式商品页面。</p>
+            </div>
+            <fieldset className="mt-5 grid gap-4 lg:grid-cols-3">
+              <legend className="sr-only">本批陈列效果</legend>
+              {presentationOptions.map((option) => (
+                <label className={`cursor-pointer overflow-hidden rounded-2xl border-2 transition ${presentationPreset === option.value ? "border-[#e2c200] ring-2 ring-[#f7e653]" : "border-slate-200 hover:border-sky-300"}`} key={option.value}>
+                  <input className="sr-only" checked={presentationPreset === option.value} name="presentationPreset" onChange={() => setPresentationPreset(option.value)} type="radio" value={option.value} />
+                  <span className={`grid h-28 grid-cols-3 items-end gap-2 bg-gradient-to-br p-4 ${option.previewClass}`} aria-hidden="true">
+                    <span className={`rounded-lg bg-white/90 shadow-sm ${option.value === "today_spotlight" ? "col-span-2 h-20" : option.value === "joyful_scrapbook" ? "h-16 -rotate-3" : "h-20"}`} />
+                    <span className={`rounded-lg bg-white/90 shadow-sm ${option.value === "joyful_scrapbook" ? "h-20 rotate-3" : "h-14"}`} />
+                    {option.value !== "today_spotlight" ? <span className="h-12 rounded-lg bg-white/90 shadow-sm" /> : null}
+                  </span>
+                  <span className="block p-4"><strong className="block">{option.name}</strong><span className="mt-1 block text-sm leading-6 text-slate-600">{option.description}</span></span>
+                </label>
+              ))}
+            </fieldset>
+            <p className="mt-4 rounded-xl bg-[#f4fcfd] px-4 py-3 text-sm text-[#155f70]">主推商品：{featuredItemId ? `商品 ${items.findIndex((item) => item.id === featuredItemId) + 1}` : "自动使用第一件商品"}</p>
+          </div>
+
           <div className="sticky top-20 z-20 flex flex-wrap items-end gap-3 rounded-2xl border border-[#e5e0d7] bg-[#fffdf8]/95 p-4 shadow-sm backdrop-blur">
             <button className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50" onClick={mergeSelected} type="button">合并所选图片</button>
             <label className="min-w-48 text-sm font-semibold">批量标签
@@ -221,6 +264,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
                   <label className="flex items-center gap-2 font-semibold"><input checked={selected.has(item.id)} onChange={() => toggleSelected(item.id)} type="checkbox" />商品 {index + 1}</label>
                   <div className="flex gap-2">
+                    <button aria-pressed={featuredItemId === item.id} className={`text-sm font-semibold underline-offset-4 hover:underline ${featuredItemId === item.id ? "text-amber-700" : "text-sky-700"}`} onClick={() => setFeaturedItemId(featuredItemId === item.id ? null : item.id)} type="button">{featuredItemId === item.id ? "★ 本批主推" : "设为主推"}</button>
                     {item.images.length > 1 ? <button className="text-sm font-semibold text-sky-700 underline-offset-4 hover:underline" onClick={() => splitItem(item)} type="button">拆分图片</button> : null}
                     <button className="text-sm font-semibold text-rose-700 underline-offset-4 hover:underline" onClick={() => removeItem(item)} type="button">移除</button>
                   </div>

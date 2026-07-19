@@ -6,11 +6,13 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { isUuid } from "@/lib/catalog/admin-validation";
 import {
   isValidShowcaseTagSlug,
+  isShowcasePresentationPreset,
   MAX_SHOWCASE_IMAGES,
   parseShowcaseImageEditPayload,
   parseShowcasePublishPayload,
   SHOWCASE_IMAGE_BUCKET,
   validateStoredShowcaseObject,
+  type ShowcasePresentationPreset,
 } from "@/lib/showcase/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -34,10 +36,21 @@ function revalidateShowcasePaths() {
   revalidatePath("/zh/new-arrivals");
 }
 
-export async function publishShowcaseBatchAction(batchId: string, rawItems: string): Promise<ShowcaseActionState> {
+export async function publishShowcaseBatchAction(
+  batchId: string,
+  rawItems: string,
+  presentationPreset: string,
+  featuredItemId: string | null,
+): Promise<ShowcaseActionState> {
   await requireAdmin();
+  if (!isShowcasePresentationPreset(presentationPreset) || (featuredItemId !== null && !isUuid(featuredItemId))) {
+    return errorState("请选择有效的陈列方案和本批主推商品。");
+  }
   const parsed = parseShowcasePublishPayload(batchId, rawItems);
   if (!parsed.success) return errorState(parsed.message);
+  if (featuredItemId !== null && !parsed.values.some((item) => item.id === featuredItemId)) {
+    return errorState("主推商品必须属于本次快速上新批次。");
+  }
   const paths = parsed.values.flatMap((item) => item.images.map((image) => image.storagePath));
   const supabase = await createSupabaseServerClient();
   const { data: storedObjects, error: listError } = await supabase.storage
@@ -65,10 +78,40 @@ export async function publishShowcaseBatchAction(batchId: string, rawItems: stri
       ? "快速上新资料未能登记，Storage 上传已自动撤销。"
       : "快速上新资料未能登记，且 Storage 清理失败；请停止继续上传并联系技术人员。");
   }
+  const { error: presentationError } = await supabase.rpc("admin_update_showcase_batch_presentation", {
+    p_batch_id: batchId,
+    p_presentation_preset: presentationPreset,
+    p_featured_item_id: featuredItemId,
+  });
   revalidatePath("/admin/quick-listings");
   revalidatePath("/en/new-arrivals");
   revalidatePath("/zh/new-arrivals");
-  return { status: "success", message: `已发布 ${parsed.values.length} 个展示商品、${paths.length} 张图片。` };
+  return {
+    status: "success",
+    message: presentationError
+      ? `已发布 ${parsed.values.length} 个展示商品，但陈列方案暂时保留为默认效果；可在管理墙重新选择。`
+      : `已发布 ${parsed.values.length} 个展示商品、${paths.length} 张图片，并应用所选陈列方案。`,
+  };
+}
+
+export async function updateShowcaseBatchPresentationAction(
+  batchId: string,
+  presentationPreset: ShowcasePresentationPreset,
+  featuredItemId: string | null,
+): Promise<ShowcaseActionState> {
+  await requireAdmin();
+  if (!isUuid(batchId) || !isShowcasePresentationPreset(presentationPreset) || (featuredItemId !== null && !isUuid(featuredItemId))) {
+    return errorState("陈列方案或主推商品无效。");
+  }
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("admin_update_showcase_batch_presentation", {
+    p_batch_id: batchId,
+    p_presentation_preset: presentationPreset,
+    p_featured_item_id: featuredItemId,
+  });
+  if (error) return errorState("陈列方案暂时无法保存，请确认主推商品属于当前批次。");
+  revalidateShowcasePaths();
+  return { status: "success", message: "本批新品的陈列方案和主推商品已更新。" };
 }
 
 export async function createShowcaseTagAction(
