@@ -1,16 +1,20 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   createShowcaseTagAction,
+  deleteShowcaseImageAction,
+  moveShowcaseImageAction,
   updateShowcaseItemAction,
   updateShowcaseItemsStatusAction,
   type ShowcaseActionState,
 } from "@/app/admin/(protected)/quick-listings/actions";
 import type { AdminShowcaseItem, ShowcaseTag } from "@/lib/showcase/data";
+import { uploadAndAddShowcaseImages, uploadAndReplaceShowcaseImage } from "@/lib/showcase/client-upload";
+import { MAX_SHOWCASE_IMAGES_PER_ITEM } from "@/lib/showcase/validation";
 
 const initialState: ShowcaseActionState = { status: "idle", message: "" };
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
@@ -31,11 +35,104 @@ function TagCreator() {
   );
 }
 
+function ShowcaseImageEditor({ item }: { item: AdminShowcaseItem }) {
+  const router = useRouter();
+  const addInput = useRef<HTMLInputElement>(null);
+  const replaceInput = useRef<HTMLInputElement>(null);
+  const replaceTarget = useRef<{ id: string } | null>(null);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const remaining = MAX_SHOWCASE_IMAGES_PER_ITEM - item.images.length;
+
+  async function addFiles(files: File[], replacing?: { id: string }) {
+    if (!files.length) return;
+    if (!replacing && files.length > remaining) {
+      setMessage(`每个展示商品最多 ${MAX_SHOWCASE_IMAGES_PER_ITEM} 张图片；当前还可添加 ${remaining} 张。`);
+      return;
+    }
+    setPending(true);
+    setMessage(replacing ? "正在上传替换图片…" : `正在上传 ${files.length} 张图片…`);
+    let added: ShowcaseActionState;
+    try {
+      added = replacing
+        ? await uploadAndReplaceShowcaseImage(item.id, replacing.id, files[0])
+        : await uploadAndAddShowcaseImages(item.id, files);
+    } catch {
+      setPending(false);
+      setMessage("图片处理意外中断，请确认管理员会话与网络后重试。");
+      return;
+    }
+    if (added.status !== "success") {
+      setPending(false);
+      setMessage(added.message);
+      return;
+    }
+
+    setMessage(added.message);
+    setPending(false);
+    router.refresh();
+  }
+
+  async function removeImage(imageId: string) {
+    if (item.images.length <= 1 || !window.confirm("确定移除这张图片吗？图片文件也会从 Storage 删除。")) return;
+    setPending(true);
+    setMessage("正在移除图片…");
+    const result = await deleteShowcaseImageAction(item.id, imageId);
+    setPending(false);
+    setMessage(result.message);
+    if (result.status === "success") router.refresh();
+  }
+
+  async function setCover(imageId: string) {
+    setPending(true);
+    setMessage("正在更新封面…");
+    const result = await moveShowcaseImageAction(item.id, imageId, 0);
+    setPending(false);
+    setMessage(result.message);
+    if (result.status === "success") router.refresh();
+  }
+
+  return (
+    <section aria-labelledby={`showcase-images-${item.id}`} className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold" id={`showcase-images-${item.id}`}>商品图片</h3>
+          <p className="mt-1 text-xs text-slate-600">第 1 张是封面；可添加、替换或移除，至少保留 1 张。</p>
+        </div>
+        <button className="min-h-10 rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={pending || remaining < 1} onClick={() => addInput.current?.click()} type="button">
+          {remaining > 0 ? `＋ 添加图片（还可 ${remaining} 张）` : "已达 10 张上限"}
+        </button>
+      </div>
+
+      <input ref={addInput} accept="image/jpeg,image/png,image/webp" className="sr-only" multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ""; void addFiles(files); }} type="file" />
+      <input ref={replaceInput} accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; const target = replaceTarget.current; event.target.value = ""; replaceTarget.current = null; if (file && target) void addFiles([file], target); }} type="file" />
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {item.images.map((image, index) => (
+          <article className="overflow-hidden rounded-xl border border-slate-200 bg-white" key={image.id}>
+            <div className="relative aspect-[4/3] bg-slate-100">
+              <img alt={image.altText} className="h-full w-full object-cover" src={image.signedUrl} />
+              <span className="absolute left-2 top-2 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white">{index === 0 ? "封面" : `第 ${index + 1} 张`}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 p-2">
+              {index > 0 ? <button className="min-h-10 rounded-lg border border-slate-300 px-2 text-xs font-semibold disabled:opacity-50" disabled={pending} onClick={() => void setCover(image.id)} type="button">设为封面</button> : <span className="min-h-10 rounded-lg bg-emerald-50 px-2 py-3 text-center text-xs font-semibold text-emerald-700">当前封面</span>}
+              <button className="min-h-10 rounded-lg border border-sky-300 px-2 text-xs font-semibold text-sky-800 disabled:opacity-50" disabled={pending} onClick={() => { replaceTarget.current = { id: image.id }; replaceInput.current?.click(); }} type="button">替换</button>
+              <button className="col-span-2 min-h-10 rounded-lg border border-rose-200 px-2 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={pending || item.images.length <= 1} onClick={() => void removeImage(image.id)} type="button">{item.images.length <= 1 ? "至少保留 1 张" : "移除图片"}</button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {message ? <p className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-700" role="status">{message}</p> : null}
+    </section>
+  );
+}
+
 function ItemEditor({ item, tags }: { item: AdminShowcaseItem; tags: ShowcaseTag[] }) {
   const [state, action, pending] = useActionState(updateShowcaseItemAction.bind(null, item.id), initialState);
   return (
     <details className="border-t border-slate-100 p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-sky-800">编辑名称、说明、价格和标签</summary>
+      <summary className="cursor-pointer text-sm font-semibold text-sky-800">编辑图片、名称、说明、价格和标签</summary>
+      <ShowcaseImageEditor item={item} />
       <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-semibold">中文名称<input className={`${inputClass} mt-1`} defaultValue={item.titleZh} maxLength={120} name="titleZh" /></label>
         <label className="text-sm font-semibold">English name<input className={`${inputClass} mt-1`} defaultValue={item.titleEn} maxLength={120} name="titleEn" /></label>

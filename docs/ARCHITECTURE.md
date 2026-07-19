@@ -182,7 +182,8 @@
 
 - 新入口 `/admin/quick-listings/new` 采用手机优先的客户端草稿：一次选择 1–30 张图，默认一图一展示商品，可勾选合并为多图商品、拆分、批量加标签，并选填中英文名称、说明和 CAD 价格。
 - 浏览器只使用当前管理员会话直传 private `showcase-images`；`publishShowcaseBatchAction` 再执行 `requireAdmin()`、校验结构与标签、复核每个 Storage 对象，并调用 `admin_create_showcase_batch` 原子写入批次、商品、翻译、图片、标签关系和审计。登记失败会删除本批已上传对象。
-- `/admin/quick-listings` 提供搜索、状态筛选、批量状态操作，以及单品编辑、售完、恢复和归档；不要求 SKU、规格或精确库存，也不会修改正式商品。
+- `/admin/quick-listings` 提供搜索、状态筛选、批量状态操作，以及单品内容与图片编辑、售完、恢复和归档；不要求 SKU、规格或精确库存，也不会修改正式商品。
+- 后续改图仍由管理员浏览器直传当前商品专属目录，Server Action 复核 Storage 对象后调用 `security invoker` RPC。追加、删除、设封面和原位替换均在数据库内维持连续顺序与 1–10 张约束；删除或替换旧 Storage 对象失败时调用受限补偿 RPC 恢复原图片资料，新上传对象失败时自动撤销。
 - `/[locale]/new-arrivals` 使用匿名 RLS 读取已发布展示数据并生成短时签名 URL。标签筛选保存在 `?tag=`，语言切换保留 query；卡片支持多图原生 `dialog`、键盘方向键、缩略图和复制短编号。
 - 中文与英文展示按各自 translation 读取；缺少展示标题时使用语言对应的受控通用文案，不把中文标题泄漏到英文端。已归档商品从公开端隐藏，已售完商品保留并显示售完章。
 - 该试验是独立展示通道，不替代 `products / variants / cart / order-request`。若某个展示商品未来需要正式下单，仍需店主在现有正式商品后台另行建档。

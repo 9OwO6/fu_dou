@@ -884,3 +884,15 @@
 - Git 与 Production 部署：修复 commit `cd2f291` 已推送至 `origin/main`；Vercel Git 集成部署 `dpl_H9NMu4DTPjgKiu12z6FvQdej8AgK` 已达到 Production Ready，并绑定 `https://happy-beans-fudou.vercel.app`。
 - 线上复验：Production 1440×900 实测灯箱水平/垂直中心偏差均为 `0`，390×844 继续全屏且关闭交互正常；console 无 warning/error，Vercel 最近一小时无 runtime error 或 HTTP 5xx 日志。
 - 当前任务状态：桌面灯箱居中修复、Git push、Vercel Production 部署与线上真实商品复验均已完成；无需数据库或外部账号操作。
+
+## 快速展示商品图片编辑
+
+- 调整日期：2026-07-18（America/Vancouver）。
+- 用户反馈：快速发布后只能修改名称、说明、价格和标签，多图商品无法继续增图、减图或替换图片。
+- 完成内容：管理卡片现支持一次追加多图、逐张原位替换、移除图片，以及将任意图片设为封面；明确显示当前封面、图片序号、剩余可添加数量和操作结果。每件商品继续限制 1–10 张图，不能删除最后一张。
+- 数据库与 Storage：新增 migration `20260719061347_quick_showcase_image_management.sql`，提供 6 个 `security invoker` 图片管理/补偿 RPC；新增与替换会复核当前商品目录内真实 Storage 对象，数据库失败时清理新文件，旧文件删除失败时恢复原图片资料和顺序。正式商品、库存、购物车和订单请求均无变化。
+- API、环境变量与依赖：无新增公开 Route Handler、环境变量、secret 或 npm 依赖；复用现有管理员 Server Action、private `showcase-images` bucket 和会话。
+- 自动检查：`db:reset` 成功；`db:test` 12 个文件 244/244 通过；本地 `db:lint` 无 schema error、`db:advisors` 无问题；图片 payload 单元测试 6/6、`typecheck` 与 `lint` 通过。production build、完整 Vitest、真实浏览器、云端 migration、Git push 与 Production 部署将在本任务结束前补记。
+- 人工验收步骤：打开任意多图快速展示商品的编辑区，依次追加两张图、将后一张设为封面、替换中间图片、删除一张；刷新管理墙和中英文新品墙，确认封面、灯箱顺序和图片总数一致，并确认最后一张不能删除。
+- 未完成项与风险：本段记录创建时云端 migration、Production 部署和线上复验尚未执行；完成后以实际证据更新。拖拽自由排序、图片裁剪和自动压缩继续延后，本次只提供明确的封面设置和安全增删替换。
+- 当前任务状态：实现与本地数据库验证已完成，部署前验证进行中；尚不能宣称 Production 完成。

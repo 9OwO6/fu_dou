@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseShowcasePublishPayload } from "@/lib/showcase/validation";
+import { parseShowcaseImageEditPayload, parseShowcasePublishPayload } from "@/lib/showcase/validation";
 
 const batchId = "b1000000-0000-4000-8000-000000000001";
 const validItem = {
@@ -50,5 +50,30 @@ describe("quick showcase publish validation", () => {
   it("rejects duplicate image identifiers across lightweight items", () => {
     const parsed = parseShowcasePublishPayload(batchId, JSON.stringify([validItem, { ...validItem, id: "b1000000-0000-4000-8000-000000000007" }]));
     expect(parsed).toMatchObject({ success: false });
+  });
+});
+
+describe("quick showcase image edit validation", () => {
+  const itemId = "b1000000-0000-4000-8000-000000000008";
+  const imageId = "b1000000-0000-4000-8000-000000000009";
+
+  it("accepts a new image stored in the current item folder", () => {
+    expect(parseShowcaseImageEditPayload(itemId, JSON.stringify([{
+      id: imageId,
+      storagePath: `showcase/${itemId}/${imageId}.webp`,
+      width: 900,
+      height: 1200,
+    }]))).toMatchObject({ success: true });
+  });
+
+  it("rejects another item folder and duplicate image identifiers", () => {
+    expect(parseShowcaseImageEditPayload(itemId, JSON.stringify([{
+      id: imageId,
+      storagePath: `showcase/b1000000-0000-4000-8000-000000000010/${imageId}.webp`,
+    }]))).toMatchObject({ success: false });
+    expect(parseShowcaseImageEditPayload(itemId, JSON.stringify([
+      { id: imageId, storagePath: `showcase/${itemId}/${imageId}.webp` },
+      { id: imageId, storagePath: `showcase/${itemId}/${imageId}.jpg` },
+    ]))).toMatchObject({ success: false });
   });
 });

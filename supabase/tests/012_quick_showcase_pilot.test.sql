@@ -36,7 +36,7 @@ insert into showcase_test_payload values ('[
   }
 ]'::jsonb);
 
-select plan(25);
+select plan(41);
 
 select is(
   (select count(*)::integer from information_schema.tables where table_schema = 'public' and table_name in (
@@ -56,18 +56,30 @@ select results_eq(
 
 select is(
   (select count(*)::integer from pg_proc join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
-   where nspname = 'public' and proname in ('admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item') and not prosecdef),
-  4, 'all showcase management functions use security invoker');
+   where nspname = 'public' and proname in (
+     'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
+     'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
+     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
+   ) and not prosecdef),
+  10, 'all showcase management functions use security invoker');
 
 select is(
   (select count(*)::integer from information_schema.routine_privileges where routine_schema = 'public' and grantee = 'anon'
-   and routine_name in ('admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item')),
+   and routine_name in (
+     'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
+     'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
+     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
+   )),
   0, 'anon cannot execute showcase management functions');
 
 select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 set local role authenticated;
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_tag('stationery','文具','Stationery')$command$), '42501', 'ordinary authenticated users cannot create tags');
 select is(pg_temp.sqlstate_of($command$select public.admin_create_showcase_batch('c1200000-0000-4000-8000-000000000100',(select items from showcase_test_payload))$command$), '42501', 'ordinary authenticated users cannot publish a showcase batch');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_add_showcase_images('c1200000-0000-4000-8000-000000000101','[]'::jsonb)$command$),
+  '42501',
+  'ordinary authenticated users cannot edit showcase images');
 
 reset role;
 select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -89,6 +101,69 @@ select ok((select short_code ~ '^HB-[0-9A-F]{12}$' from public.showcase_items wh
 select ok((select alt_text ~ 'Happy Beans new arrival HB-[0-9A-F]{12}' from public.showcase_image_translations where image_id = 'c1200000-0000-4000-8000-000000000203' and locale = 'en'), 'unnamed images receive a safe language-specific generated alt');
 
 select lives_ok(
+  $command$select public.admin_add_showcase_images(
+    'c1200000-0000-4000-8000-000000000101',
+    '[{"id":"c1200000-0000-4000-8000-000000000204","storagePath":"showcase/c1200000-0000-4000-8000-000000000101/c1200000-0000-4000-8000-000000000204.webp","width":900,"height":1200}]'::jsonb
+  )$command$,
+  'admin can append an image to an existing showcase item');
+select is((select count(*)::integer from public.showcase_item_images where item_id = 'c1200000-0000-4000-8000-000000000101'), 3, 'appended image is registered');
+select lives_ok(
+  $command$select public.admin_move_showcase_image('c1200000-0000-4000-8000-000000000101','c1200000-0000-4000-8000-000000000204',0)$command$,
+  'admin can promote an existing image to cover');
+select is((select sort_order from public.showcase_item_images where id = 'c1200000-0000-4000-8000-000000000204'), 0, 'cover image receives sort order zero');
+select lives_ok(
+  $command$select public.admin_replace_showcase_image(
+    'c1200000-0000-4000-8000-000000000101',
+    'c1200000-0000-4000-8000-000000000202',
+    '{"id":"c1200000-0000-4000-8000-000000000205","storagePath":"showcase/c1200000-0000-4000-8000-000000000101/c1200000-0000-4000-8000-000000000205.jpg","width":1000,"height":1300}'::jsonb
+  )$command$,
+  'admin can atomically replace an image');
+select results_eq(
+  $query$select id, sort_order from public.showcase_item_images where id in ('c1200000-0000-4000-8000-000000000202','c1200000-0000-4000-8000-000000000205') order by id$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000205'::uuid, 2)$values$,
+  'replacement keeps the old display position and removes old metadata');
+select lives_ok(
+  $command$select public.admin_delete_showcase_image('c1200000-0000-4000-8000-000000000101','c1200000-0000-4000-8000-000000000205')$command$,
+  'admin can remove one image while another remains');
+select results_eq(
+  $query$select sort_order from public.showcase_item_images where item_id = 'c1200000-0000-4000-8000-000000000101' order by sort_order$query$,
+  $values$values (0), (1)$values$,
+  'remaining image order is dense after removal');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_delete_showcase_image('c1200000-0000-4000-8000-000000000102','c1200000-0000-4000-8000-000000000203')$command$),
+  '23514',
+  'admin cannot remove the last showcase image');
+
+create temporary table deleted_showcase_image (payload jsonb not null);
+grant insert, select on table pg_temp.deleted_showcase_image to authenticated;
+select lives_ok(
+  $command$insert into deleted_showcase_image
+    select public.admin_delete_showcase_image('c1200000-0000-4000-8000-000000000101','c1200000-0000-4000-8000-000000000201')$command$,
+  'delete returns enough metadata for compensation');
+select lives_ok(
+  $command$select public.admin_restore_showcase_image((select payload from deleted_showcase_image))$command$,
+  'failed Storage deletion can restore image metadata');
+select is((select count(*)::integer from public.showcase_item_images where item_id = 'c1200000-0000-4000-8000-000000000101'), 2, 'compensation restores the removed image');
+
+create temporary table replaced_showcase_image (payload jsonb not null);
+grant insert, select on table pg_temp.replaced_showcase_image to authenticated;
+select lives_ok(
+  $command$insert into replaced_showcase_image
+    select public.admin_replace_showcase_image(
+      'c1200000-0000-4000-8000-000000000101',
+      'c1200000-0000-4000-8000-000000000201',
+      '{"id":"c1200000-0000-4000-8000-000000000206","storagePath":"showcase/c1200000-0000-4000-8000-000000000101/c1200000-0000-4000-8000-000000000206.png","width":800,"height":1000}'::jsonb
+    )$command$,
+  'replacement returns enough metadata for compensation');
+select lives_ok(
+  $command$select public.admin_revert_showcase_image_replace((select payload from replaced_showcase_image),'c1200000-0000-4000-8000-000000000206')$command$,
+  'failed old Storage deletion can revert a replacement');
+select results_eq(
+  $query$select id from public.showcase_item_images where id in ('c1200000-0000-4000-8000-000000000201','c1200000-0000-4000-8000-000000000206') order by id$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000201'::uuid)$values$,
+  'replacement compensation restores only the original image');
+
+select lives_ok(
   $command$select public.admin_update_showcase_item('c1200000-0000-4000-8000-000000000102','苹果盘','','','','12.50',array[(select id from created_tag)])$command$,
   'admin can later edit optional content, price, and tags');
 select results_eq(
@@ -105,7 +180,7 @@ select is((select count(*)::integer from public.showcase_items), 1, 'anon sees p
 select is(pg_temp.sqlstate_of($command$insert into public.showcase_tags (slug) values ('blocked')$command$), '42501', 'anon cannot write showcase data');
 
 reset role;
-select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 5, 'successful showcase operations append five audit events');
+select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 13, 'successful showcase operations append thirteen audit events');
 
 select * from finish();
 rollback;

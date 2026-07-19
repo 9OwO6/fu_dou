@@ -144,6 +144,48 @@ export function parseShowcasePublishPayload(
   return { success: true, values: result };
 }
 
+export function parseShowcaseImageEditPayload(
+  itemId: string,
+  raw: string,
+): ValidationResult<ShowcaseImageInput[]> {
+  if (!isUuid(itemId)) return { success: false, message: "展示商品标识无效。" };
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return { success: false, message: "新增图片资料无法读取。" };
+  }
+
+  if (!Array.isArray(value) || value.length < 1 || value.length > MAX_SHOWCASE_IMAGES_PER_ITEM) {
+    return { success: false, message: `每次请添加 1–${MAX_SHOWCASE_IMAGES_PER_ITEM} 张图片。` };
+  }
+
+  const ids = new Set<string>();
+  const paths = new Set<string>();
+  const result: ShowcaseImageInput[] = [];
+  for (const image of value) {
+    if (!isRecord(image)) return { success: false, message: "新增图片资料格式不正确。" };
+    const id = typeof image.id === "string" ? image.id : "";
+    const storagePath = typeof image.storagePath === "string" ? image.storagePath : "";
+    if (!isUuid(id) || ids.has(id) || paths.has(storagePath)) {
+      return { success: false, message: "新增图片标识重复或无效。" };
+    }
+    if (!new RegExp(`^showcase/${itemId}/${id}\\.(jpg|jpeg|png|webp)$`).test(storagePath)) {
+      return { success: false, message: "新增图片路径不属于当前展示商品。" };
+    }
+    ids.add(id);
+    paths.add(storagePath);
+    result.push({
+      id,
+      storagePath,
+      width: dimension(image.width),
+      height: dimension(image.height),
+    });
+  }
+  return { success: true, values: result };
+}
+
 export function validateStoredShowcaseObject(path: string, object: { metadata?: unknown } | undefined) {
   if (!object || !isRecord(object.metadata)) return false;
   const mimeType = typeof object.metadata.mimetype === "string" ? object.metadata.mimetype : "";
