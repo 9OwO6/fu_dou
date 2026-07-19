@@ -921,3 +921,23 @@
 - 人工验收步骤：店主在 `/admin/quick-listings` 选择一个真实批次，依次保存“快乐手账拼贴”和“今日主推”，同时切换本批主推商品；刷新中英文新品墙，确认布局与主推同步变化，最后保存偏好的正式方案。
 - 当前任务状态：本地实现、数据库安全验证、云端 migration、Git push、Vercel Production、三档响应式和线上真实数据只读 smoke test 均完成；Production 已可使用。店主实际保存两套非默认方案属于最后的数据型人工验收，不阻塞功能上线。
 - 下一阶段启动条件：陈列效果反馈迭代可以直接开始；无需新增环境变量、外部账号或依赖。本状态记录将以独立文档 commit 推送；工作区既有未跟踪分类图片与 `home_about_img.png` 保持未提交。
+
+## 当前新品展台整组化反馈迭代
+
+- 调整日期：2026-07-19（America/Vancouver）。
+- 对应范围：只改进独立快速上新/新品墙的组合关系和表现力；正式 `products / variants / inventory / cart / order_requests`、private 图片 bucket、询价边界和既有上传批次保持不变。
+- 完成内容：
+  - 上传批次只负责录入与追溯；新增独立“当前新品展台”，可从所有未归档展示商品跨批次选择 2–8 件、受控排序并指定一件主推。
+  - 后台提供真实商品图的小型预览、系统建议/已保存状态、加入/移除、上下排序、主推和整组保存；发布页移除批次模板选择，发布后引导回管理墙编排。
+  - 前台不再按上传批次生成多个孤立区块。`新品橱窗` 使用同一浅黄/浅蓝舞台和三件“一大两小”构图；`快乐手账` 使用同一纸张画布、照片白边、胶带与克制错落；未入选商品进入“更多新鲜好物”。
+  - 无已保存展台时，最近最多 8 件可见商品形成不落库的系统建议组合，确保现有线上三件商品在 migration 部署后立即整体展示；标签筛选后不足两件则安全回归普通卡片。
+- 数据库：新增 migration `20260719075245_showcase_display_sets.sql`、两张启用 RLS 的隔离展示表、唯一已发布索引和 `security invoker` RPC。RPC 拒绝非管理员、单件/超限/重复商品、组外主推、归档商品和未发布批次，并原子归档旧展台、发布新展台和写审计。
+- API、Storage、环境变量和依赖：无新增 Route Handler、bucket/policy、环境变量、secret 或 npm 依赖；复用现有管理员会话、Server Action 和 private 签名图片。
+- 自动检查：本地 Supabase 从零重建成功；数据库 12 个文件 257/257 断言、schema lint、Vitest 10 个文件 46/46、ESLint、TypeScript、production build 和 `git diff --check` 均通过。
+- 真实浏览器：使用三个不同上传批次的本地商品夹具验证系统建议自动成组、管理员登录、切换并保存“快乐手账”、成功状态、刷新持久化和前台同步；主推商品灯箱可打开/关闭。1440×900、1024×768、390×844 均无页面级横向溢出或相关 console error；桌面新品橱窗为左侧主推加右侧上下两件，手机为主推通栏加双列辅助卡，后台在 1024px 自动改为上下表单。
+- 人工验收步骤：部署后先只读打开中英文新品墙，确认现有三件商品已自动聚合；随后店主进入 `/admin/quick-listings`，确认系统建议组合，调整顺序/主推并分别预览两套效果，最后只保存偏好方案一次。
+- 云端与 Production：`supabase db push --linked --dry-run` 确认只包含 `20260719075245_showcase_display_sets.sql`，随后已成功应用；本地/远端 16 条 migration history 完全一致，远端 schema lint 无错误。本次 migration 未新增 advisor；只保留既有订单 RPC 和 Auth leaked-password protection 两项提醒。功能 commit `e1cc2fd` 已推送至 `origin/main`，本地与远端 SHA 一致；Vercel Git 集成状态为 `Deployment has completed`，正式域名已更新。
+- Production 真实浏览器：中文和英文 `/new-arrivals` 均把 3 件真实商品放进同一个展台，分别显示“一起登场的新朋友”和“New friends, arriving together”；中文主推商品灯箱可打开和关闭。桌面 1440×900 与手机约 390×844 均只有一个展台、3 张展台卡，且 `scrollWidth === clientWidth`。已登录店主会话可打开 `/admin/quick-listings`，看到“当前新品展台”、3 件已选商品、排序/主推控件和两套整组效果；当前明确标注为“系统建议组合”，此次只读 smoke test 没有修改生产数据。
+- 未完成项与风险：店主尚未在 Production 保存最终偏好，因此当前由系统建议自动组合并使用“新品橱窗”；真实手机上的排序、切换主推、保存“快乐手账”及触控灯箱仍属于数据型人工验收。既有订单 RPC advisor 与 Auth leaked-password protection 提醒不属于本次功能引入。
+- 当前任务状态：代码、数据库 migration、Git push、Vercel Production 部署、中英文公开页与已登录后台 smoke test 均已完成；Production 已可使用。店主保存最终陈列偏好是运营验收，不阻塞上线。
+- 下一阶段启动条件：已具备，可直接进入店主试用和表现效果反馈迭代；无需新增环境变量、外部账号或依赖。本状态记录将以独立文档 commit 推送，工作区既有未跟踪分类图片与 `home_about_img.png` 保持未提交。
