@@ -892,7 +892,11 @@
 - 完成内容：管理卡片现支持一次追加多图、逐张原位替换、移除图片，以及将任意图片设为封面；明确显示当前封面、图片序号、剩余可添加数量和操作结果。每件商品继续限制 1–10 张图，不能删除最后一张。
 - 数据库与 Storage：新增 migration `20260719061347_quick_showcase_image_management.sql`，提供 6 个 `security invoker` 图片管理/补偿 RPC；新增与替换会复核当前商品目录内真实 Storage 对象，数据库失败时清理新文件，旧文件删除失败时恢复原图片资料和顺序。正式商品、库存、购物车和订单请求均无变化。
 - API、环境变量与依赖：无新增公开 Route Handler、环境变量、secret 或 npm 依赖；复用现有管理员 Server Action、private `showcase-images` bucket 和会话。
-- 自动检查：`db:reset` 成功；`db:test` 12 个文件 244/244 通过；本地 `db:lint` 无 schema error、`db:advisors` 无问题；图片 payload 单元测试 6/6、`typecheck` 与 `lint` 通过。production build、完整 Vitest、真实浏览器、云端 migration、Git push 与 Production 部署将在本任务结束前补记。
+- 自动检查：`db:reset` 成功；`db:test` 12 个文件 244/244 通过；本地 `db:lint` 无 schema error、`db:advisors` 无问题；完整 Vitest 10 个文件 42/42、`typecheck`、`lint`、Next.js 16.2.10 production build 与 `git diff --check` 全部通过。
+- 云端与 Production：`supabase db push --linked --dry-run` 确认只包含本次 migration，随后已成功应用；本地/远端 14 条 migration history 完全一致，远端 schema lint 无错误。本次 6 个图片 RPC 未新增 advisor；只保留既有订单 RPC 和 Auth leaked-password protection 两项提醒。功能 commit `775acfb` 已推送至 `origin/main`，Vercel Git 部署 `dpl_FqXR69H1XmqGPjEtkCJmT7YNDEe8` 已达到 Production Ready 并绑定正式域名。
+- 真实浏览器：使用 Production 已登录店主会话打开 3 张图和 1 张图的真实展示商品；展开编辑器后可见封面、序号、剩余数量、追加、替换、设为封面和移除控件，单图商品的“至少保留 1 张”按钮正确禁用。1440×900、1024×768 与 390×844 均无页面级横向溢出，移动端图片与按钮保持单列可读，console 无 warning/error；公开中文新品墙仍显示 3 件真实商品。Vercel 最近一小时无 runtime error 或 HTTP 5xx。
 - 人工验收步骤：打开任意多图快速展示商品的编辑区，依次追加两张图、将后一张设为封面、替换中间图片、删除一张；刷新管理墙和中英文新品墙，确认封面、灯箱顺序和图片总数一致，并确认最后一张不能删除。
-- 未完成项与风险：本段记录创建时云端 migration、Production 部署和线上复验尚未执行；完成后以实际证据更新。拖拽自由排序、图片裁剪和自动压缩继续延后，本次只提供明确的封面设置和安全增删替换。
-- 当前任务状态：实现与本地数据库验证已完成，部署前验证进行中；尚不能宣称 Production 完成。
+- 未完成项与风险：为避免改变店主现有商品顺序或短暂污染线上展示，本次线上验收没有实际提交增删替换；这些真实文件操作已由本地 Storage/RPC 补偿路径和 41 个数据库断言覆盖，仍建议店主按上述步骤完成一次生产数据型人工验收。Chrome 自动化扩展未开启本地文件 URL 权限，因此自动文件选择未执行。拖拽自由排序、图片裁剪和自动压缩继续延后。
+- 当前任务状态：代码、数据库 migration、Git push、Vercel Production 部署、三档响应式和线上真实商品编辑器 smoke test 均完成；Production 已可使用。店主实际选择文件并完成一次增删替换属于最后的数据型人工验收，不阻塞功能上线。
+- 下一阶段启动条件：图片编辑反馈迭代可以直接开始；无需新增环境变量、外部账号或依赖。
+- Git 与外部操作：功能 commit `775acfb` 已推送；本次最终状态记录将以独立文档 commit 推送。工作区既有未跟踪分类图片与 `home_about_img.png` 保持未提交。
