@@ -871,3 +871,16 @@
 - 当前任务是否真正完成：代码、数据库 migration、Git push、Vercel Production 部署、公开页面与后台入口 smoke test 均完成；生产环境已经可用。首批真实图片上传、合并、售完与归档仍需由用户或店主在手机上进行数据型人工验收。
 - 下一阶段启动条件：可以直接进入店主试用和反馈迭代；不再需要数据库、Git 或 Vercel 激活操作。
 - Git 与外部操作：功能 commit `626d06c` 已 push 并部署；本次状态更新将以独立文档 commit 推送。无需新增环境变量或外部账号。工作区既有未跟踪分类图片和 `home_about_img.png` 仍未纳入提交。
+
+## 快速展示墙桌面灯箱居中修复
+
+- 修复日期：2026-07-18（America/Vancouver）。
+- 用户反馈：真实快速上架商品的灯箱在桌面端贴住视口左上角，没有居中显示。
+- 原因与修复：全局样式将原生 `dialog` 的默认外边距归零后，`.showcase-dialog` 没有重新声明居中规则；现已明确使用固定定位、四边 `inset: 0` 与自动外边距，使桌面灯箱相对可用视口水平、垂直居中，同时保留 767px 以下全屏灯箱。
+- 修改文件：`app/globals.css`、`docs/PROJECT_STATUS.md`。
+- 数据库、API、Storage、环境变量与依赖：无变化；未新增 migration、Route Handler、bucket/policy、环境变量或 npm package。
+- 自动检查：`lint`、`typecheck`、Vitest 10 个文件 40/40、Next.js 16.2.10 production build 与 `git diff --check` 均通过。
+- 真实浏览器验证：修复前在 Production 1440×900 实测灯箱左上角为 `(0, 0)`，水平/垂直偏离中心 `-180px / -63px`；修复后本地真实云端商品在 1440×900 和 1024×768 均相对可用视口居中，390×844 仍为完整全屏灯箱，关闭按钮可用且页面无横向溢出。浏览器仅记录由 Dark Reader 扩展注入属性引起的开发环境 hydration 提示，不是本次代码错误。
+- Git 与 Production 部署：修复 commit `cd2f291` 已推送至 `origin/main`；Vercel Git 集成部署 `dpl_H9NMu4DTPjgKiu12z6FvQdej8AgK` 已达到 Production Ready，并绑定 `https://happy-beans-fudou.vercel.app`。
+- 线上复验：Production 1440×900 实测灯箱水平/垂直中心偏差均为 `0`，390×844 继续全屏且关闭交互正常；console 无 warning/error，Vercel 最近一小时无 runtime error 或 HTTP 5xx 日志。
+- 当前任务状态：桌面灯箱居中修复、Git push、Vercel Production 部署与线上真实商品复验均已完成；无需数据库或外部账号操作。
