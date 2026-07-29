@@ -5,7 +5,7 @@
 
 ## Phase 12B：无 AI 快速上新版
 
-- 状态：已完成。本地数据库从零重建、全量 pgTAP、安全检查和真实管理员浏览器发布路径均已通过；Phase 12B migration 已应用并核对远端记录，应用代码等待本次 Git/Vercel 发布。
+- 状态：已完成并部署。功能 commit `2c5ae0a` 已推送到 `origin/main`，Phase 12B migration 已应用到远端 Supabase，Vercel Production 已构建为 Ready。
 - 实施日期：2026-07-29（America/Vancouver）。
 - 精确范围：复用现有快速展示系统，把 `/admin/quick-listings/new` 简化为“上传图片、确认分组、填写价格、发布”；不使用 OpenAI API、GPT 导入、本地 LM Studio、AI 分类或 AI 文案，不修改正式商品、规格、库存、购物车或订单请求。
 - 完成内容：
@@ -27,11 +27,12 @@
 - 已执行检查：`lint`、`typecheck`、全量 Vitest 14 个文件 63/63、定向快速展示 11/11、Next.js 16.2.12 production build（27 条路由）和 `git diff --check` 通过。
 - 数据库验收：本地 `supabase db reset` 成功；12 个 pgTAP 文件共 261/261 个断言通过，其中快速展示 58 个；schema lint 无错误，advisors 无问题，本地 migration 历史包含本 Phase migration。
 - 真实浏览器验收：在本地管理员会话中选择 3 张真实商品图，合并其中 2 张为同一商品，得到 2 件展示商品；批量应用 CA$12.99 后把第二件覆盖为 CA$18.50，真实上传与发布成功。管理墙显示双图标记和两档价格；`/zh/new-arrivals` 显示系统中文名称/说明，双图详情可切换；`/en/new-arrivals` 显示独立英文系统文案。1440×900、1024×768、390×844 均无页面级横向溢出，浏览器控制台 0 error。验收后已重建本地数据库，清除临时管理员、上传对象和展示记录。
+- Production smoke test：`https://happy-beans-fudou.vercel.app` 的中文首页、商品列表、购物车、订单请求、中英文新品墙均正常加载；店主会话可进入 `/admin/quick-listings/new`，页面显示“无 AI 快速上新”、单批最多 50 张及 0/50 初始状态。本次线上验收只读，未上传、发布测试商品或提交订单；桌面和 390px 页面均无页面级横向溢出，浏览器控制台 0 error，Vercel 最近 1 小时 error 日志扫描无记录。
 - 店主人工验收步骤：登录后台进入“快速上新”，先用 3–5 张图片复查一图一商品、勾选合并、批量价格和单件例外价格；发布后检查管理墙及中英文新品墙。日常可直接使用，50 张满批次仍建议店主按实际网络速度做一次压力体验。
 - 未完成项与风险：50 张、每张最大 10 MiB 时理论上传量可接近 500 MiB，顺序上传会比小批次慢，但进度可见且失败可清理；页面刷新仍会丢失尚未上传的浏览器内草稿，本阶段没有新增持久化草稿表。分类/标签不自动推断，留空商品仍会出现在“全部”新品墙。
 - 当前 Phase 是否真正完成：是；本地离线开发环境中的实现、数据库、安全和真实浏览器路径已满足本 Phase 验收标准。
 - 下一 Phase 是否具备启动条件：是；如要上线，下一步应单独授权远端 migration、Preview/Production 部署与线上 smoke test。
-- Git、部署与外部操作：远端 Supabase 已应用 `20260729193401_phase_12b_zero_ai_quick_intake.sql` 并确认本地/远端 migration 一致；应用代码尚待本次 commit、push 和 Vercel Production 部署。不需要付费 AI 账号或 API Key。
+- Git、部署与外部操作：远端 Supabase 已应用 `20260729193401_phase_12b_zero_ai_quick_intake.sql` 并确认本地/远端 migration 一致；功能 commit `2c5ae0a` 已 push，Vercel Production deployment `dpl_4Ckk2xUXvKKk1yijzNvWFEcsfD4i` 为 Ready，生产别名为 `https://happy-beans-fudou.vercel.app`。不需要付费 AI 账号或 API Key；本状态记录以独立文档 commit 推送。
 
 ## Phase 12A：本地 AI 上新助手 v0.1
 
