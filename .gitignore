@@ -27,6 +27,9 @@
 .DS_Store
 Thumbs.db
 
+# local AI intake workspace (customer/product images and generated drafts)
+/HappyBeans-Inbox/
+
 # TypeScript generated files
 *.tsbuildinfo
 next-env.d.ts

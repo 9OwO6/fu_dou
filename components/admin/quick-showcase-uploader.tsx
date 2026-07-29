@@ -50,6 +50,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchTagId, setBatchTagId] = useState(tags[0]?.id ?? "");
+  const [batchPrice, setBatchPrice] = useState("");
   const [message, setMessage] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -86,7 +87,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
         }));
       }
       replaceItems([...items, ...created]);
-      setMessage(`已加入 ${incoming.length} 张图片；当前默认每张图是一个展示商品。`);
+      setMessage(`已加入 ${incoming.length} 张图片；当前默认每张图是一个商品，同一商品有多张图时再勾选合并。`);
     } catch {
       setMessage("图片读取失败，请重新选择 JPEG、PNG 或 WebP 文件。");
     } finally {
@@ -165,6 +166,17 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
     setMessage(`已为 ${selected.size} 个商品添加标签。`);
   }
 
+  function applyBatchPrice() {
+    const normalized = batchPrice.trim();
+    if (!/^\d{1,8}(?:\.\d{1,2})?$/.test(normalized) || Number(normalized) <= 0) {
+      setMessage("批量价格无效：请输入大于 0、最多两位小数的 CAD 金额。");
+      return;
+    }
+    const targetIds = selected.size ? selected : new Set(items.map((item) => item.id));
+    replaceItems(items.map((item) => targetIds.has(item.id) ? { ...item, priceCad: normalized } : item));
+    setMessage(`已把 CA$${Number(normalized).toFixed(2)} 应用到${selected.size ? `${selected.size} 个所选商品` : "本批全部商品"}。`);
+  }
+
   async function publish() {
     if (!items.length) {
       setMessage("请先选择至少一张图片。 ");
@@ -175,6 +187,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
     const result = await uploadAndPublishShowcaseBatch(
       crypto.randomUUID(),
       items,
+      (uploaded, total) => setMessage(`正在上传图片 ${uploaded}/${total}；完成后会自动登记商品，请不要关闭页面…`),
     );
     setIsPublishing(false);
     setMessage(result.message);
@@ -194,7 +207,7 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold">1. 丢入本批全部图片</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">默认每张图片是一个商品；之后可勾选合并为同一商品的多张图。</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">默认每张图片是一个商品；同一商品有多个角度时，勾选对应卡片后点击“合并所选图片”。</p>
           </div>
           <span className="rounded-full bg-[#fff7c2] px-3 py-1 text-sm font-semibold">{items.length} 个商品 · {imageCount}/{MAX_SHOWCASE_IMAGES} 张图</span>
         </div>
@@ -208,18 +221,22 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
         <section className="space-y-4">
           <div className="rounded-2xl border border-[#cbe8ec] bg-[#f4fcfd] p-5">
             <h2 className="text-xl font-semibold">2. 整理本次上传商品</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">这里仅负责上传和整理商品。发布完成后，可在管理墙把不同上传批次的商品一起加入“当前新品展台”，再选择整组展示效果和主推商品。</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">你只需要确认图片分组并填写价格。名称、说明、图片文字和短编号会由系统安全生成；有需要时仍可展开单件卡片自行修改。</p>
           </div>
 
           <div className="sticky top-20 z-20 flex flex-wrap items-end gap-3 rounded-2xl border border-[#e5e0d7] bg-[#fffdf8]/95 p-4 shadow-sm backdrop-blur">
             <button className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50" onClick={mergeSelected} type="button">合并所选图片</button>
+            <label className="min-w-44 text-sm font-semibold">批量价格 CAD
+              <input className={`${inputClass} mt-1`} inputMode="decimal" onChange={(event) => setBatchPrice(event.target.value)} placeholder="例如 12.99" value={batchPrice} />
+            </label>
+            <button className="min-h-11 rounded-xl border border-[#e2c200] bg-[#fff7c2] px-4 py-2 font-semibold hover:bg-[#f8e96d]" onClick={applyBatchPrice} type="button">{selected.size ? "应用到所选" : "应用到全部"}</button>
             <label className="min-w-48 text-sm font-semibold">批量标签
               <select className={`${inputClass} mt-1`} onChange={(event) => setBatchTagId(event.target.value)} value={batchTagId}>
                 {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.nameZh || tag.slug}</option>)}
               </select>
             </label>
             <button className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50" onClick={applyBatchTag} type="button">应用到所选</button>
-            <button className="ml-auto min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50" onClick={() => setSelected(new Set(items.map((item) => item.id)))} type="button">全选</button>
+            <button className="ml-auto min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50" onClick={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map((item) => item.id)))} type="button">{selected.size === items.length ? "取消全选" : "全选"}</button>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
@@ -239,11 +256,15 @@ export function QuickShowcaseUploader({ tags }: { tags: ShowcaseTag[] }) {
                     {item.images.length > 1 ? <div className="mt-2 flex gap-1 overflow-x-auto">{item.images.map((image) => <img alt="" className="size-10 shrink-0 rounded-md object-cover" key={image.id} src={image.previewUrl} />)}</div> : null}
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-sm font-semibold">中文名称（可不填）<input className={`${inputClass} mt-1`} maxLength={120} onChange={(event) => updateItem(item.id, { titleZh: event.target.value })} placeholder="例如：小熊玻璃杯" value={item.titleZh} /></label>
-                    <label className="block text-sm font-semibold">English name（可不填）<input className={`${inputClass} mt-1`} maxLength={120} onChange={(event) => updateItem(item.id, { titleEn: event.target.value })} placeholder="Bear glass cup" value={item.titleEn} /></label>
-                    <label className="block text-sm font-semibold">价格 CAD（可不填）<input className={`${inputClass} mt-1`} inputMode="decimal" onChange={(event) => updateItem(item.id, { priceCad: event.target.value })} placeholder="18.00" value={item.priceCad} /></label>
+                    <div className="rounded-xl bg-[#fffbea] p-3 text-sm leading-6 text-slate-700">
+                      <p className="font-semibold text-slate-900">系统名称：今日到店 · HB-自动编号</p>
+                      <p>无需写文案；发布后可在管理墙随时改名和补充说明。</p>
+                    </div>
+                    <label className="block text-sm font-semibold">价格 CAD<input className={`${inputClass} mt-1`} inputMode="decimal" onChange={(event) => updateItem(item.id, { priceCad: event.target.value })} placeholder="可留空，前台会显示请私信询价" value={item.priceCad} /></label>
                     <details className="rounded-xl border border-slate-200 p-3">
-                      <summary className="cursor-pointer font-semibold">可选说明与标签</summary>
+                      <summary className="cursor-pointer font-semibold">可选：自定义名称、说明与标签</summary>
+                      <label className="mt-3 block text-sm font-semibold">中文名称<input className={`${inputClass} mt-1`} maxLength={120} onChange={(event) => updateItem(item.id, { titleZh: event.target.value })} placeholder="留空则使用系统名称" value={item.titleZh} /></label>
+                      <label className="mt-3 block text-sm font-semibold">English name<input className={`${inputClass} mt-1`} maxLength={120} onChange={(event) => updateItem(item.id, { titleEn: event.target.value })} placeholder="Leave blank to use the system name" value={item.titleEn} /></label>
                       <label className="mt-3 block text-sm font-semibold">中文说明<textarea className={`${inputClass} mt-1 min-h-20`} maxLength={500} onChange={(event) => updateItem(item.id, { descriptionZh: event.target.value })} value={item.descriptionZh} /></label>
                       <label className="mt-3 block text-sm font-semibold">English description<textarea className={`${inputClass} mt-1 min-h-20`} maxLength={500} onChange={(event) => updateItem(item.id, { descriptionEn: event.target.value })} value={item.descriptionEn} /></label>
                       <fieldset className="mt-3"><legend className="text-sm font-semibold">标签</legend><div className="mt-2 flex flex-wrap gap-2">{tags.map((tag) => <label className="rounded-full border border-slate-200 px-3 py-1.5 text-sm" key={tag.id}><input checked={item.tagIds.includes(tag.id)} className="mr-2" onChange={(event) => updateItem(item.id, { tagIds: event.target.checked ? [...item.tagIds, tag.id] : item.tagIds.filter((id) => id !== tag.id) })} type="checkbox" />{tag.nameZh || tag.slug}</label>)}</div></fieldset>

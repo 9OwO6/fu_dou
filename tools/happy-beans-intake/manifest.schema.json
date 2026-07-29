@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://happy-beans.local/schemas/intake-manifest-0.1.json",
+  "title": "Happy Beans local AI intake manifest v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "batchId", "sourceFiles", "duplicateFiles", "rejectedFiles", "groups", "modelName", "rulesVersion", "createdAt", "runMode"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "batchId": { "type": "string", "pattern": "^hb-[a-f0-9]{16}$" },
+    "sourceFiles": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "$ref": "#/$defs/sourceFile" } },
+    "duplicateFiles": { "type": "array", "items": { "$ref": "#/$defs/duplicateFile" } },
+    "rejectedFiles": { "type": "array", "items": { "$ref": "#/$defs/rejectedFile" } },
+    "groups": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "$ref": "#/$defs/group" } },
+    "modelName": { "type": "string", "minLength": 1 },
+    "rulesVersion": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "runMode": { "const": "dry_run" }
+  },
+  "$defs": {
+    "sourceFile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["imageId", "originalFileName", "contentHash", "mimeType", "width", "height", "byteSize"],
+      "properties": {
+        "imageId": { "type": "string", "pattern": "^img-[0-9]{3}$" },
+        "originalFileName": { "type": "string", "minLength": 1 },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "mimeType": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "byteSize": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "duplicateFile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["originalFileName", "contentHash", "duplicateOfImageId"],
+      "properties": {
+        "originalFileName": { "type": "string", "minLength": 1 },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "duplicateOfImageId": { "type": "string", "pattern": "^img-[0-9]{3}$" }
+      }
+    },
+    "rejectedFile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["originalFileName", "reason"],
+      "properties": {
+        "originalFileName": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "altText": {
+      "type": "object", "additionalProperties": false,
+      "required": ["imageId", "altZh"],
+      "properties": {
+        "imageId": { "type": "string", "pattern": "^img-[0-9]{3}$" },
+        "altZh": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    },
+    "group": {
+      "type": "object", "additionalProperties": false,
+      "required": ["groupId", "imageIds", "titleZh", "descriptionZh", "suggestedTags", "coverImageId", "orderedImageIds", "altTexts", "confidence", "uncertainFields", "warnings"],
+      "properties": {
+        "groupId": { "type": "string", "pattern": "^group-[0-9]{3}$" },
+        "imageIds": { "type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": { "type": "string", "pattern": "^img-[0-9]{3}$" } },
+        "titleZh": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "descriptionZh": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "suggestedTags": { "type": "array", "maxItems": 10, "uniqueItems": true, "items": { "type": "string" } },
+        "coverImageId": { "type": "string" },
+        "orderedImageIds": { "type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": { "type": "string" } },
+        "altTexts": { "type": "array", "minItems": 1, "maxItems": 10, "items": { "$ref": "#/$defs/altText" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "uncertainFields": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

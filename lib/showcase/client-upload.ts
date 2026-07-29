@@ -39,10 +39,12 @@ export function releaseShowcasePreviews(items: Array<{ images: PendingShowcaseIm
 export async function uploadAndPublishShowcaseBatch(
   batchId: string,
   items: Array<Omit<ShowcasePublishItemInput, "images"> & { images: PendingShowcaseImage[] }>,
+  onProgress?: (uploaded: number, total: number) => void,
 ) {
   const supabase = createSupabaseBrowserClient();
   const uploadedPaths: string[] = [];
   const payload: ShowcasePublishItemInput[] = [];
+  const totalImages = items.reduce((total, item) => total + item.images.length, 0);
 
   for (const item of items) {
     const uploadedImages = [];
@@ -64,6 +66,7 @@ export async function uploadAndPublishShowcaseBatch(
       }
       uploadedPaths.push(path);
       uploadedImages.push({ id: image.id, storagePath: path, width: image.width, height: image.height });
+      onProgress?.(uploadedPaths.length, totalImages);
     }
     payload.push({ ...item, images: uploadedImages });
   }

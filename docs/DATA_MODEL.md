@@ -263,9 +263,9 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 
 ## 17. 快速上新独立展示模型
 
-- 正式 migrations：`20260718072835_quick_showcase_pilot.sql`、`20260719061347_quick_showcase_image_management.sql`；该模型与正式 `products / variants / inventory` 完全独立，不进入购物车、订单请求或库存扣减流程。
+- 正式 migrations：`20260718072835_quick_showcase_pilot.sql`、`20260719061347_quick_showcase_image_management.sql`、`20260729193401_phase_12b_zero_ai_quick_intake.sql`；该模型与正式 `products / variants / inventory` 完全独立，不进入购物车、订单请求或库存扣减流程。
 - `showcase_batches` 记录一次朋友圈式发布批次；`showcase_items` 保存短编号、可选 CAD 价格、`inquiry / sold / archived` 状态和排序；标题与说明由 `showcase_item_translations` 按 locale 分离。
-- `showcase_item_images` 与 `showcase_image_translations` 保存 private Storage 路径、顺序、尺寸和自动生成的双语 alt；一个展示商品支持 1–10 张图，每批最多 30 张。
+- `showcase_item_images` 与 `showcase_image_translations` 保存 private Storage 路径、顺序、尺寸和自动生成的双语 alt；一个展示商品支持 1–10 张图，无 AI 快速上新每批最多 50 张/50 件。
 - `showcase_tags`、`showcase_tag_translations`、`showcase_item_tags` 提供轻量多标签筛选。初始标签为水杯、餐具、摆件、玩偶、地毯和礼物，管理员可继续受控新增。
 - `showcase-images` 是 10 MiB private bucket，仅允许 JPEG、PNG、WebP。首次发布使用 `showcase/<batch UUID>/<image UUID>.<ext>`；后续图片编辑使用 `showcase/<item UUID>/<image UUID>.<ext>`。Server Action 会复核真实对象 MIME、扩展名与大小，再调用 `security invoker` RPC 原子登记数据和审计；新增/替换失败时撤销新对象。
 - 图片管理 RPC 支持追加、删除、设为封面和原位替换，并在数据库内维持 `0..n-1` 连续顺序、1–10 张上限和双语自动 alt。删除/替换先提交数据库资料，再删除 private Storage 旧对象；文件删除失败时由受限补偿 RPC 恢复原资料，避免公开展示引用不存在的对象。
@@ -275,4 +275,5 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - `admin_update_showcase_batch_presentation` 只授予 `authenticated` 执行，函数内部再次要求管理员，并拒绝跨批次主推引用；更新方案、主推和审计记录在同一事务完成。
 - migration `20260719075245_showcase_display_sets.sql` 新增 `showcase_display_sets` 与 `showcase_display_set_items`：前者保存受控布局、主推和发布状态，后者保存 2–8 件跨上传批次商品的明确顺序；唯一部分索引保证同一时间只有一个已发布展台。两表都启用 RLS。
 - `admin_save_showcase_display_set` 只接受 `sunny_shelf / joyful_scrapbook` 两种整组布局，拒绝单件、超过 8 件、重复商品、组外主推、归档商品和未发布批次；发布新展台时原子归档此前已发布展台。
-- `012_quick_showcase_pilot.test.sql` 已增至 54 个断言；当前 12 个数据库测试文件共 257/257 个断言通过。
+- Phase 12B 的 `admin_create_showcase_batch` 在名称/说明留空时按稳定短编号写入中英文安全通用文案，并在审计 metadata 标记 `intake_mode = zero_ai`；价格和标签仍可为空，正式商品数据模型保持不变。
+- `012_quick_showcase_pilot.test.sql` 已增至 58 个断言，新增 50 件成功、51 件拒绝和系统文案断言；本地数据库从零重建后，12 个 pgTAP 文件共 261/261 个断言通过。

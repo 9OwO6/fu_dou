@@ -8,8 +8,8 @@ import {
 } from "@/lib/catalog/media-validation";
 
 export const SHOWCASE_IMAGE_BUCKET = "showcase-images";
-export const MAX_SHOWCASE_ITEMS = 30;
-export const MAX_SHOWCASE_IMAGES = 30;
+export const MAX_SHOWCASE_ITEMS = 50;
+export const MAX_SHOWCASE_IMAGES = 50;
 export const MAX_SHOWCASE_IMAGES_PER_ITEM = 10;
 export const MAX_SHOWCASE_TAGS_PER_ITEM = 10;
 export const MIN_SHOWCASE_DISPLAY_ITEMS = 2;

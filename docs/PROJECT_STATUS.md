@@ -1,7 +1,93 @@
 # Happy Beans（福豆）项目状态
 
-> 最后更新：2026-07-13（America/Vancouver）  
+> 最后更新：2026-07-29（America/Vancouver）
 > 当前执行基线：`HAPPY_BEANS完整开发计划.md`
+
+## Phase 12B：无 AI 快速上新版
+
+- 状态：已完成。本地数据库从零重建、全量 pgTAP、安全检查和真实管理员浏览器发布路径均已通过；Phase 12B migration 已应用并核对远端记录，应用代码等待本次 Git/Vercel 发布。
+- 实施日期：2026-07-29（America/Vancouver）。
+- 精确范围：复用现有快速展示系统，把 `/admin/quick-listings/new` 简化为“上传图片、确认分组、填写价格、发布”；不使用 OpenAI API、GPT 导入、本地 LM Studio、AI 分类或 AI 文案，不修改正式商品、规格、库存、购物车或订单请求。
+- 完成内容：
+  - 单批上限由 30 提升为 50 张图片/50 件展示商品；每件仍限制 1–10 张、单图 10 MiB，继续只接受 JPEG/PNG/WebP。
+  - 默认一图一商品；同一商品有多个角度时勾选合并，合并后可重新拆分。现有移除、批量标签和全选能力保持。
+  - 新增批量 CAD 价格：未选择商品时应用到全批，选择商品时只应用到所选；单件价格仍可覆盖，价格留空仍显示请私信询价。
+  - 名称与说明移入可选区域。店主留空时，数据库按稳定短编号写入“今日到店 · HB-…”/“New arrival · HB-…”和安全的中英文通用说明；图片 alt 使用同一系统名称，不猜材质、分类或其他商品事实。
+  - 50 张图片继续使用管理员浏览器顺序直传 private `showcase-images`；界面逐张显示上传进度。任何上传/登记失败仍撤销本批新对象，发布 RPC 继续使用 `security invoker`、管理员复核、RLS 和原子事务。
+- 关键文件：
+  - `app/admin/(protected)/quick-listings/new/page.tsx`
+  - `components/admin/quick-showcase-uploader.tsx`
+  - `lib/showcase/client-upload.ts`、`lib/showcase/validation.ts`
+  - `supabase/migrations/20260729193401_phase_12b_zero_ai_quick_intake.sql`
+  - `tests/unit/showcase-validation.test.ts`、`supabase/tests/012_quick_showcase_pilot.test.sql`
+  - `docs/ARCHITECTURE.md`、`docs/DATA_MODEL.md`、`docs/ADMIN_GUIDE.md`
+- 路由、组件与功能：没有新增路由；更新既有 `/admin/quick-listings/new` 与 `QuickShowcaseUploader`。公开 `/zh/new-arrivals`、`/en/new-arrivals` 和管理墙继续复用原有读取与展示组件。
+- 数据库：没有新增表、枚举、视图、RLS policy 或 Storage bucket；正式 migration 只替换既有 `admin_create_showcase_batch(uuid,jsonb)`，上限改为 50，并增加确定性通用文案和 `intake_mode = zero_ai` 审计 metadata。
+- API、Storage、环境变量和依赖：没有新增 Route Handler、外部 API、bucket/policy、环境变量、secret 或 npm 依赖；不再需要 `OPENAI_API_KEY`。
+- 已执行检查：`lint`、`typecheck`、全量 Vitest 14 个文件 63/63、定向快速展示 11/11、Next.js 16.2.12 production build（27 条路由）和 `git diff --check` 通过。
+- 数据库验收：本地 `supabase db reset` 成功；12 个 pgTAP 文件共 261/261 个断言通过，其中快速展示 58 个；schema lint 无错误，advisors 无问题，本地 migration 历史包含本 Phase migration。
+- 真实浏览器验收：在本地管理员会话中选择 3 张真实商品图，合并其中 2 张为同一商品，得到 2 件展示商品；批量应用 CA$12.99 后把第二件覆盖为 CA$18.50，真实上传与发布成功。管理墙显示双图标记和两档价格；`/zh/new-arrivals` 显示系统中文名称/说明，双图详情可切换；`/en/new-arrivals` 显示独立英文系统文案。1440×900、1024×768、390×844 均无页面级横向溢出，浏览器控制台 0 error。验收后已重建本地数据库，清除临时管理员、上传对象和展示记录。
+- 店主人工验收步骤：登录后台进入“快速上新”，先用 3–5 张图片复查一图一商品、勾选合并、批量价格和单件例外价格；发布后检查管理墙及中英文新品墙。日常可直接使用，50 张满批次仍建议店主按实际网络速度做一次压力体验。
+- 未完成项与风险：50 张、每张最大 10 MiB 时理论上传量可接近 500 MiB，顺序上传会比小批次慢，但进度可见且失败可清理；页面刷新仍会丢失尚未上传的浏览器内草稿，本阶段没有新增持久化草稿表。分类/标签不自动推断，留空商品仍会出现在“全部”新品墙。
+- 当前 Phase 是否真正完成：是；本地离线开发环境中的实现、数据库、安全和真实浏览器路径已满足本 Phase 验收标准。
+- 下一 Phase 是否具备启动条件：是；如要上线，下一步应单独授权远端 migration、Preview/Production 部署与线上 smoke test。
+- Git、部署与外部操作：远端 Supabase 已应用 `20260729193401_phase_12b_zero_ai_quick_intake.sql` 并确认本地/远端 migration 一致；应用代码尚待本次 commit、push 和 Vercel Production 部署。不需要付费 AI 账号或 API Key。
+
+## Phase 12A：本地 AI 上新助手 v0.1
+
+- 状态：本地工具、官方视觉模型、真实 LM Studio 图片调用、两图完整成功路径和浏览器预览已验证；三图批次暴露一项真实模型材质词纠错限制，且约 20 张真实商品图覆盖度仍待验收，因此尚未标记为真正完成。
+- 实施日期：2026-07-27（America/Vancouver）。
+- 精确范围：只实现 Windows 本地 `dry_run` 草稿原型；不连接 Supabase、不上传 Storage、不修改正式 `products / variants / inventory / cart / order_requests` 或快速展示数据、不调用付费云端 AI、不部署 Production。
+- 完成内容：
+  - 新增双击入口 `scripts/run-happy-beans-intake.cmd` 与 `npm.cmd run intake`。
+  - 建立项目内、由 Git 忽略的 `E:\Code\fudou\HappyBeans-Inbox` 工作目录及 `incoming / processing / completed / failed / output` 状态目录；原图保持在 incoming，不移动、删除或覆盖。
+  - 支持 JPEG/PNG/WebP、1–30 文件、每组最多 10 图；通过真实解码处理空文件、无效类型、损坏、扩展名不符、10 MiB 上限、内容重复、中文/空格/特殊字符文件名。
+  - 使用 SHA-256 内容哈希生成稳定批次 ID；完成标记阻止重复批次生成，`state.json` 可恢复分组和逐组草稿。
+  - 第一阶段用带 imageId 的联系表判断分组；第二阶段逐组发送缩略图生成中文标题、说明、允许标签、封面、顺序和 alt。每组独立重试和保存断点。
+  - LM Studio 客户端只允许 `http://127.0.0.1:1234/v1`，使用 `image_url` 和 JSON Schema structured output；不存在云端 fallback。
+  - 增加独立 `AI_RULES.md`、机器配置、manifest JSON Schema 和 TypeScript 强校验；额外字段、漏图、重复/未知图片、未知标签和代码禁止的价格/库存/材质/尺寸/容量/产地/认证/护理声明均安全失败。
+  - 生成无脚本、只读、响应式 `preview.html`，显示批次统计、重复/失败、缩略图、封面、文案、标签、置信度、不确定字段、警告和原文件名。
+  - 真实店主运行后补充终端阶段反馈：显示扫描统计、分组/断点复用、当前组、局部重试次数、断点保存、manifest/预览和失败摘要路径；失败批次不再提前创建新的空 output 子目录。
+  - 新增仅材质词受控兜底：必须先耗尽模型重试，且草稿除材质禁区外结构与关系完全合法；代码删除所有禁用材质词、记录受影响字段与强制人工复核警告、把置信度压到阈值以下，并再次运行完整校验。其他禁区与任何删词后无效内容仍安全失败。
+- 关键文件：
+  - `config/content-ai/AI_RULES.md`、`config/content-ai/import.config.json`
+  - `tools/happy-beans-intake/**`、`scripts/run-happy-beans-intake.cmd`
+  - `tests/unit/intake-*.test.ts`
+  - `docs/LOCAL_AI_INTAKE_ASSISTANT.md`
+  - `package.json`、`package-lock.json`、`tsconfig.json`
+- 路由、组件与网站功能：无变化；没有新增 Next.js 路由、公开组件或后台入口。v0.1 通过外部脚本运行，预览是本地静态 HTML。
+- 数据库、API、Storage 与环境变量：无变化；没有 migration、Supabase API、bucket/policy 或环境变量。新增的本地 HTTP 客户端只访问 LM Studio loopback API，不读取 `.env.local`。
+- 新增依赖：直接锁定 `sharp@0.35.3`，用于可靠解码 JPEG/PNG/WebP、损坏检查、缩略图和联系表；Next.js 也通过精确 override 复用同一安全版本。
+- 本机与模型：LM Studio `0.4.20+1`、RTX 4070 Ti 12GB、本地 API 可用。已从 Qwen 官方仓库下载并校验 `Qwen3-VL-8B-Instruct-GGUF` Q4_K_M 主模型与 Q8_0 视觉投影，总计 5,780,074,528 字节；两个 SHA-256 均与官方元数据一致。通过同盘 hard link 导入 LM Studio，identifier 为 `qwen3-vl-8b-instruct`，8,192 context、100% GPU offload 加载成功；验收结束后已卸载以释放显存，模型文件与导入项保留。既有 HauhauCS `Uncensored/Aggressive` 模型未用于本工具。
+- 自动检查：`lint`、`typecheck`、全量 Vitest 14 个文件 62/62、Next.js 16.2.12 production build 与 `git diff --check` 全部通过。Phase 12A 的 4 个测试文件 16/16 覆盖空目录、单图、多图、重复、无效类型、损坏、超过 30、中文/特殊文件名、模型缺失、超时、无效 JSON、未知图片引用、逐组局部重试、失败进度与空输出防护、仅材质词受控兜底及其他禁区继续拒绝、重复批次和 manifest 强校验。
+- 本地脚本真实运行：已通过 `npm.cmd run intake` 创建五个外部状态目录；空 incoming 按预期安全失败。随后用 3 张已授权真实商品图调用正式模型：分组正确拆为三组，前两组草稿通过并写入断点；第三组透明小熊杯的 alt 多次生成材质词“玻璃”，被硬校验持续拒绝，未生成错误 manifest 或完成标记。
+- 店主 30 图验收批次：`hb-2b14f16e7e8a409d` 已生成 30 张缩略图和联系表，模型分为 8 组；`group-001` 草稿已通过并保存，下一组的 `img-010` 因 alt 先后生成“木质/玻璃”被安全拒绝。此前终端缺少阶段进度且过早创建空 output 子目录，已修正为明确进度/失败路径并仅在 manifest 通过后创建批次输出。
+- 受控端到端：使用明确标记的 2 张受控图片和注入的确定性本地测试模型跑通扫描、缩略图、联系表、分组、首组失败后局部重试、manifest、预览、完成标记与重复运行跳过；这只证明管线，不证明真实商品识别质量。
+- 真实模型成功路径：另以两张上述真实图片运行隔离 QA 批次 `hb-3a8f131646aa0ae8`，完整生成两组草稿、manifest、preview 和 completed marker；第二次运行返回 `already_completed`。模型正确建议 `cups` / `tableware`，没有生成 SKU、价格、库存、规格或受禁事实。
+- 真实浏览器：受控三图预览已在 1440×900、1024×768 和 390×844 验证。真实模型两图预览也在 1440×900 和 390×844 验证，两张缩略图均完整加载，桌面与手机均 `scrollWidth === clientWidth`；截图和 manifest 保存在本次 Codex visualizations 目录。
+- 人工验收步骤：
+  1. 在 incoming 放入约 20 张更多已授权真实商品照片，双击 `.cmd`。
+  2. 特别加入透明、反光、木纹背景等容易诱发材质词的商品图，确认安全失败比例是否可接受。
+  3. 打开 output 下预览，逐组核对分组、文案、允许标签、封面、顺序、alt、置信度与警告。
+  4. 修改 `AI_RULES.md` 和 `rulesVersion`，换一批照片运行，确认规则确实影响下一批且不放宽硬性限制。
+  5. 确认 Supabase、网站后台和 Production 数据完全未变化。
+- 未完成项与风险：目前只验收 3 张真实照片，其中 2 张完整成功、1 张因模型反复在 alt 中写材质词而安全失败；约 20 张真实商品图质量与失败率验收尚未执行。模型即使通过 schema 也可能分错商品或生成不理想文案，所有输出仍需店主审核。代码已增强精确字段/命中词诊断、把上一份无效 JSON 反馈给局部纠错，并将额外重试提高到 5，但没有放宽材质禁区。
+- 有意延后：Supabase AI 草稿表、设备配对 token、Storage 自动上传、网站审核队列、自动公开发布、正式商品转换、SKU/价格/库存/规格生成、小红书抓取、模型微调和自动重写规则。店主提出的 GPT 多图识别 → 严格 JSON manifest/人工预览 → admin-only 待审草稿 → 明确批准后同步轻量快速展示，是可行的独立后续 Phase；本轮只记录方向，未接 OpenAI API、未创建表/迁移、未上传图片或写入 Supabase。
+- 当前 Phase 是否真正完成：否。可信模型、真实调用和成功/安全失败路径均已验证，但约 20 张照片的质量覆盖和透明商品材质词失败率尚未达到关闭标准。
+- 下一 Phase 是否具备启动条件：否。必须先完成约 20 张真实商品图质量验收并决定上述安全失败率是否可接受；即使通过，后续云端待审草稿也必须另立 Phase 和安全设计。
+- Git、部署与外部操作：未 commit、未 push、未执行 Supabase migration、未部署 Vercel/Production。本地状态文件位于项目内被 `.gitignore` 排除的 `HappyBeans-Inbox`；用户无需配置云端账号。
+
+## Next.js 16.2.12 安全维护与全站回归
+
+- 维护日期：2026-07-27（America/Vancouver）。
+- 用户授权：在 Phase 12A 后追加独立维护任务，升级 Next.js 并做全站回归；不发布 Production、不 commit/push、不修改数据库或业务数据。
+- 依赖变化：`next` 与 `eslint-config-next` 从 16.2.10 精确升级到 16.2.12；React/React DOM 保持 19.2.7。由于 Next.js 16.2.12 仍声明 `sharp ^0.34.5`，新增精确 `sharp: 0.35.3` override，最终依赖树只保留一个 `sharp@0.35.3`。
+- 安全审计：`npm audit --omit=dev` 为 0 vulnerabilities，原 Next.js 与嵌套 sharp 两个 production 高危项已清除。完整 audit 仍报告 9 个仅开发工具链的高危路径，集中在 ESLint 插件经 `minimatch/brace-expansion` 的 DoS 公告；npm 建议升级 ESLint 10，属于独立 major 工具链维护，不影响 production bundle，本次未擅自扩大。
+- 自动检查：Next.js 16.2.12 下 `lint`、`typecheck`、Vitest 14 文件 62/62、production build、`git diff --check` 均通过；全部 27 个既有构建路由保持不变。
+- 真实浏览器回归：本地 production server 上验证 `/ → /en`、中英文首页、商品列表、`cup` 分类、new/featured/sale 集合、中英文快速新品墙、购物车、订单请求、管理员未登录拦截和登录页；`robots.txt`、`sitemap.xml` 返回 200。1440×900、1024×768、390×844 三档关键页均无页面级横向溢出或坏图，production server stderr 为空。
+- 验证边界：未使用真实管理员密码，因此受保护后台只验证了未登录重定向与登录页，没有执行会修改数据的后台保存；未发布 Preview/Production。
+- 路由、组件、数据库、API、Storage 与环境变量：无变化。
+- 当前维护任务是否真正完成：是。目标版本、production dependency audit、自动检查、构建和公开/未登录浏览器路径均已验证；开发工具链 audit 余项已单独记录。
 
 ## 仓库现状
 

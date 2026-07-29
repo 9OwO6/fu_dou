@@ -1,0 +1,29 @@
+{
+  "rulesVersion": "2026-07-27-v1",
+  "workspaceRoot": "E:\\Code\\fudou\\HappyBeans-Inbox",
+  "directories": {
+    "incoming": "incoming",
+    "processing": "processing",
+    "completed": "completed",
+    "failed": "failed",
+    "output": "output"
+  },
+  "maxBatchImages": 30,
+  "maxImagesPerProduct": 10,
+  "analysisImageMaxPixels": 1024,
+  "modelName": "qwen3-vl-8b-instruct",
+  "lmStudioBaseUrl": "http://127.0.0.1:1234/v1",
+  "minimumConfidence": 0.65,
+  "retryCount": 5,
+  "requestTimeoutMs": 120000,
+  "generatePreview": true,
+  "runMode": "dry_run",
+  "allowedTags": [
+    { "slug": "cups", "nameZh": "水杯" },
+    { "slug": "tableware", "nameZh": "餐具" },
+    { "slug": "decor", "nameZh": "摆件" },
+    { "slug": "plush", "nameZh": "玩偶" },
+    { "slug": "rugs", "nameZh": "地毯" },
+    { "slug": "gifts", "nameZh": "礼物" }
+  ]
+}

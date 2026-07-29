@@ -36,7 +36,7 @@ insert into showcase_test_payload values ('[
   }
 ]'::jsonb);
 
-select plan(54);
+select plan(58);
 
 select is(
   (select count(*)::integer from information_schema.tables where table_schema = 'public' and table_name in (
@@ -104,7 +104,7 @@ select is((select count(*)::integer from public.showcase_image_translations), 6,
 select is((select count(*)::integer from public.showcase_item_tags where item_id in ('c1200000-0000-4000-8000-000000000101','c1200000-0000-4000-8000-000000000102')), 2, 'batch tags are linked to both items');
 select ok((select price_cad is null from public.showcase_items where id = 'c1200000-0000-4000-8000-000000000102'), 'price is genuinely optional');
 select ok((select short_code ~ '^HB-[0-9A-F]{12}$' from public.showcase_items where id = 'c1200000-0000-4000-8000-000000000101'), 'item receives a stable public short code');
-select ok((select alt_text ~ 'Happy Beans new arrival HB-[0-9A-F]{12}' from public.showcase_image_translations where image_id = 'c1200000-0000-4000-8000-000000000203' and locale = 'en'), 'unnamed images receive a safe language-specific generated alt');
+select ok((select alt_text ~ '^New arrival · HB-[0-9A-F]{12}, image 1$' from public.showcase_image_translations where image_id = 'c1200000-0000-4000-8000-000000000203' and locale = 'en'), 'unnamed images receive a safe language-specific generated alt');
 
 select lives_ok(
   $command$select public.admin_update_showcase_batch_presentation(
@@ -242,6 +242,63 @@ select is(pg_temp.sqlstate_of($command$insert into public.showcase_tags (slug) v
 
 reset role;
 select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 16, 'successful showcase operations append sixteen audit events');
+
+create temporary table zero_ai_fifty_payload (items jsonb not null);
+grant select on table pg_temp.zero_ai_fifty_payload to authenticated;
+insert into zero_ai_fifty_payload
+select jsonb_agg(
+  jsonb_build_object(
+    'id', ('c1310000-0000-4000-8000-' || lpad(value::text, 12, '0'))::uuid,
+    'titleZh', '',
+    'titleEn', '',
+    'descriptionZh', '',
+    'descriptionEn', '',
+    'priceCad', '12.99',
+    'tagIds', '[]'::jsonb,
+    'images', jsonb_build_array(jsonb_build_object(
+      'id', ('c1320000-0000-4000-8000-' || lpad(value::text, 12, '0'))::uuid,
+      'storagePath', 'showcase/c1300000-0000-4000-8000-000000000100/c1320000-0000-4000-8000-' || lpad(value::text, 12, '0') || '.webp',
+      'width', 1000,
+      'height', 1250
+    ))
+  ) order by value
+)
+from generate_series(1, 50) value;
+
+select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+set local role authenticated;
+select is(
+  pg_temp.sqlstate_of($command$
+    select public.admin_create_showcase_batch(
+      'c1300000-0000-4000-8000-000000000101',
+      (select items from zero_ai_fifty_payload) || jsonb_build_array(jsonb_build_object('id', 'c1310000-0000-4000-8000-000000000051'))
+    )
+  $command$),
+  '23514',
+  'zero-AI quick intake rejects a fifty-first item'
+);
+select lives_ok(
+  $command$select public.admin_create_showcase_batch('c1300000-0000-4000-8000-000000000100',(select items from zero_ai_fifty_payload))$command$,
+  'admin publishes fifty zero-AI single-image items atomically'
+);
+select is(
+  (select count(*)::integer from public.showcase_items where batch_id = 'c1300000-0000-4000-8000-000000000100'),
+  50,
+  'all fifty zero-AI items are registered'
+);
+select ok(
+  (
+    select bool_and(
+      translation.title ~ '^今日到店 · HB-[0-9A-F]{12}$'
+      and translation.description = 'Happy Beans 最近到店的新鲜好物，欢迎联系我们了解更多。'
+    )
+    from public.showcase_item_translations translation
+    join public.showcase_items item on item.id = translation.item_id
+    where item.batch_id = 'c1300000-0000-4000-8000-000000000100'
+      and translation.locale = 'zh'
+  ),
+  'blank owner copy receives deterministic safe Chinese defaults'
+);
 
 select * from finish();
 rollback;

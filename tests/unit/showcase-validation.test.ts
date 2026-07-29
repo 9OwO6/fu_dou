@@ -63,6 +63,42 @@ describe("quick showcase publish validation", () => {
     const parsed = parseShowcasePublishPayload(batchId, JSON.stringify([validItem, { ...validItem, id: "b1000000-0000-4000-8000-000000000007" }]));
     expect(parsed).toMatchObject({ success: false });
   });
+
+  it("accepts fifty single-image items and rejects a fifty-first image", () => {
+    const fiftyItems = Array.from({ length: 50 }, (_, index) => {
+      const suffix = String(index + 1).padStart(12, "0");
+      const itemId = `b2000000-0000-4000-8000-${suffix}`;
+      const imageId = `b3000000-0000-4000-8000-${suffix}`;
+      return {
+        ...validItem,
+        id: itemId,
+        titleZh: "",
+        titleEn: "",
+        descriptionZh: "",
+        descriptionEn: "",
+        tagIds: [],
+        images: [{
+          ...validItem.images[0],
+          id: imageId,
+          storagePath: `showcase/${batchId}/${imageId}.webp`,
+        }],
+      };
+    });
+
+    expect(parseShowcasePublishPayload(batchId, JSON.stringify(fiftyItems))).toMatchObject({ success: true });
+    expect(parseShowcasePublishPayload(batchId, JSON.stringify([
+      ...fiftyItems,
+      {
+        ...validItem,
+        id: "b4000000-0000-4000-8000-000000000051",
+        images: [{
+          ...validItem.images[0],
+          id: "b5000000-0000-4000-8000-000000000051",
+          storagePath: `showcase/${batchId}/b5000000-0000-4000-8000-000000000051.webp`,
+        }],
+      },
+    ]))).toMatchObject({ success: false });
+  });
 });
 
 describe("current showcase display set validation", () => {
