@@ -277,3 +277,7 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - `admin_save_showcase_display_set` 只接受 `sunny_shelf / joyful_scrapbook` 两种整组布局，拒绝单件、超过 8 件、重复商品、组外主推、归档商品和未发布批次；发布新展台时原子归档此前已发布展台。
 - Phase 12B 的 `admin_create_showcase_batch` 在名称/说明留空时按稳定短编号写入中英文安全通用文案，并在审计 metadata 标记 `intake_mode = zero_ai`；价格和标签仍可为空，正式商品数据模型保持不变。
 - `012_quick_showcase_pilot.test.sql` 已增至 58 个断言，新增 50 件成功、51 件拒绝和系统文案断言；本地数据库从零重建后，12 个 pgTAP 文件共 261/261 个断言通过。
+- migration `20260730180124_showcase_style_groups.sql` 新增 `showcase_style_groups`、`showcase_style_group_translations`、`showcase_style_group_items` 和 `showcase_style_group_item_translations`。组名与成员款式名按 `zh / en` 分离；`featured_item_id` 指定主展示款；成员使用 `0..n-1` 连续顺序，一个展示商品由唯一约束保证最多属于一个组。
+- 每组必须由 2–6 个已发布、未归档展示商品组成。四表全部启用 RLS并显式授予最小权限；匿名仅能读取仍有至少两个公开成员的组。`admin_save_showcase_style_group` 与 `admin_dissolve_showcase_style_group` 均为 `security invoker`，只向 `authenticated` 授权并再次复核管理员，保存/拆散写入审计日志。
+- 分组外键使用级联删除清理失去成员的附属资料；主动“拆散”只删除组及其 translations/members，不触碰 `showcase_items`、图片、价格、标签或状态。该模型不引用正式商品、SKU、库存、购物车或订单请求。
+- `012_quick_showcase_pilot.test.sql` 已更新为 71 个断言；最终 migration 已从零重建，当前 12 个 pgTAP 文件共 274/274 通过，schema lint 与 Supabase advisors 均无问题。

@@ -9,12 +9,14 @@ import bearCup from "@/assets/products/小熊杯子.jpg";
 import logo from "@/assets/brand/happy-beans-logo-primary.jpg";
 import deliveryPoster from "@/assets/image/delivery-service.jpg";
 import { ProductGrid } from "@/components/product/product-grid";
+import { HomepageFreshArrivals } from "@/components/showcase/homepage-fresh-arrivals";
 import { RevealMedia } from "@/components/ui/reveal-media";
 import { collectionMatches, listPublicCategories, listPublicProducts, type PublicProduct } from "@/lib/catalog/public-data";
 import { getPublicHomepageConfiguration } from "@/lib/homepage/data";
 import type { HomepageSection, ProductSectionType } from "@/lib/homepage/schema";
 import { isSupportedLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/get-messages";
+import { listLatestPublicShowcaseItems } from "@/lib/showcase/data";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -58,10 +60,11 @@ export default async function StorefrontHome({ params }: { params: Promise<{ loc
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   const messages = getMessages(locale).public;
-  const [configuration, products, categories] = await Promise.all([
+  const [configuration, products, categories, latestShowcaseItems] = await Promise.all([
     getPublicHomepageConfiguration(locale),
     listPublicProducts(locale),
     listPublicCategories(locale),
+    listLatestPublicShowcaseItems(locale, 7).catch(() => []),
   ]);
   const firstContentType = configuration.sections.find((section) => section.sectionType !== "announcement")?.sectionType;
 
@@ -102,7 +105,27 @@ export default async function StorefrontHome({ params }: { params: Promise<{ loc
             </section>
           );
         }
-        if (section.sectionType === "new_products" || section.sectionType === "featured_products" || section.sectionType === "sale_products") {
+        if (section.sectionType === "new_products") {
+          const showcaseMessages = getMessages(locale).public.showcase;
+          return (
+            <section className="home-section home-fresh-section" key={section.sectionType}>
+              <div className="store-container">
+                <div className="section-heading home-fresh-heading"><div><p className="home-fresh-kicker">{showcaseMessages.kicker}</p><Heading>{translation.heading}</Heading><p>{translation.body}</p></div><Link className="section-link" href={`/${locale}/new-arrivals`}>{messages.home.viewAll}</Link></div>
+                <HomepageFreshArrivals
+                  items={latestShowcaseItems}
+                  labels={{
+                    ...showcaseMessages.gallery,
+                    emptyTitle: showcaseMessages.emptyTitle,
+                    emptyBody: showcaseMessages.emptyBody,
+                    viewAll: showcaseMessages.clearFilter,
+                  }}
+                  locale={locale}
+                />
+              </div>
+            </section>
+          );
+        }
+        if (section.sectionType === "featured_products" || section.sectionType === "sale_products") {
           const tone = section.sectionType === "featured_products" ? " home-section-blue" : section.sectionType === "sale_products" ? " home-section-pink" : "";
           const selected = productsForSection(section, products);
           return (

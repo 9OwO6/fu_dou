@@ -10,7 +10,9 @@ import {
   parseShowcaseImageEditPayload,
   parseShowcaseDisplaySet,
   parseShowcasePublishPayload,
+  parseShowcaseStyleGroup,
   SHOWCASE_IMAGE_BUCKET,
+  type ShowcaseStyleGroupMemberInput,
   validateStoredShowcaseObject,
 } from "@/lib/showcase/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -31,8 +33,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function revalidateShowcasePaths() {
   revalidatePath("/admin/quick-listings");
+  revalidatePath("/en");
   revalidatePath("/en/new-arrivals");
+  revalidatePath("/zh");
   revalidatePath("/zh/new-arrivals");
+}
+
+export async function saveShowcaseStyleGroupAction(
+  groupId: string | null,
+  nameZh: string,
+  nameEn: string,
+  featuredItemId: string,
+  members: ShowcaseStyleGroupMemberInput[],
+): Promise<ShowcaseActionState> {
+  await requireAdmin();
+  const parsed = parseShowcaseStyleGroup(groupId, nameZh, nameEn, featuredItemId, members);
+  if (!parsed.success) return errorState(parsed.message);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("admin_save_showcase_style_group", {
+    p_group_id: parsed.values.groupId,
+    p_name_zh: parsed.values.nameZh,
+    p_name_en: parsed.values.nameEn || null,
+    p_featured_item_id: parsed.values.featuredItemId,
+    p_members: parsed.values.members,
+  });
+  if (error) {
+    return errorState(error.code === "23505"
+      ? "其中一个展示商品已经属于其他款式组，请先编辑或拆散原款式组。"
+      : "款式组暂时无法保存，请确认所选商品仍在公开展示中。");
+  }
+  revalidateShowcasePaths();
+  return { status: "success", message: `“${parsed.values.nameZh}”款式组已保存。` };
+}
+
+export async function dissolveShowcaseStyleGroupAction(groupId: string): Promise<ShowcaseActionState> {
+  await requireAdmin();
+  if (!isUuid(groupId)) return errorState("款式组标识无效。");
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("admin_dissolve_showcase_style_group", { p_group_id: groupId });
+  if (error) return errorState("款式组暂时无法拆散，请稍后重试。");
+  revalidateShowcasePaths();
+  return { status: "success", message: "款式组已拆散；原展示商品、图片和状态均已保留。" };
 }
 
 export async function publishShowcaseBatchAction(
@@ -133,9 +174,7 @@ export async function updateShowcaseItemsStatusAction(
     p_availability: availability,
   });
   if (error) return errorState();
-  revalidatePath("/admin/quick-listings");
-  revalidatePath("/en/new-arrivals");
-  revalidatePath("/zh/new-arrivals");
+  revalidateShowcasePaths();
   return { status: "success", message: `已更新 ${uniqueIds.length} 个展示商品。` };
 }
 
@@ -172,9 +211,7 @@ export async function updateShowcaseItemAction(
     p_tag_ids: tagIds,
   });
   if (error) return errorState();
-  revalidatePath("/admin/quick-listings");
-  revalidatePath("/en/new-arrivals");
-  revalidatePath("/zh/new-arrivals");
+  revalidateShowcasePaths();
   return { status: "success", message: "展示商品的可选内容与标签已保存。" };
 }
 

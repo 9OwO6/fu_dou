@@ -36,19 +36,20 @@ insert into showcase_test_payload values ('[
   }
 ]'::jsonb);
 
-select plan(58);
+select plan(71);
 
 select is(
   (select count(*)::integer from information_schema.tables where table_schema = 'public' and table_name in (
     'showcase_batches','showcase_items','showcase_item_translations','showcase_item_images',
     'showcase_image_translations','showcase_tags','showcase_tag_translations','showcase_item_tags',
-    'showcase_display_sets','showcase_display_set_items'
-  )), 10, 'quick showcase uses ten isolated public tables');
+    'showcase_display_sets','showcase_display_set_items','showcase_style_groups',
+    'showcase_style_group_translations','showcase_style_group_items','showcase_style_group_item_translations'
+  )), 14, 'quick showcase uses fourteen isolated public tables');
 
 select is(
   (select count(*)::integer from pg_class join pg_namespace on pg_namespace.oid = pg_class.relnamespace
    where nspname = 'public' and relname like 'showcase_%' and relrowsecurity),
-  10, 'every showcase table has RLS enabled');
+  14, 'every showcase table has RLS enabled');
 
 select results_eq(
   $query$select public, file_size_limit from storage.buckets where id = 'showcase-images'$query$,
@@ -61,9 +62,10 @@ select is(
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
      'admin_update_showcase_batch_presentation','admin_save_showcase_display_set',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
-     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
+     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace',
+     'admin_save_showcase_style_group','admin_dissolve_showcase_style_group'
    ) and not prosecdef),
-  12, 'all showcase management functions use security invoker');
+  14, 'all showcase management functions use security invoker');
 
 select is(
   (select count(*)::integer from information_schema.routine_privileges where routine_schema = 'public' and grantee = 'anon'
@@ -71,7 +73,8 @@ select is(
      'admin_create_showcase_tag','admin_create_showcase_batch','admin_update_showcase_items','admin_update_showcase_item',
      'admin_update_showcase_batch_presentation','admin_save_showcase_display_set',
      'admin_add_showcase_images','admin_delete_showcase_image','admin_restore_showcase_image',
-     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace'
+     'admin_move_showcase_image','admin_replace_showcase_image','admin_revert_showcase_image_replace',
+     'admin_save_showcase_style_group','admin_dissolve_showcase_style_group'
    )),
   0, 'anon cannot execute showcase management functions');
 
@@ -85,6 +88,14 @@ select is(
   pg_temp.sqlstate_of($command$select public.admin_add_showcase_images('c1200000-0000-4000-8000-000000000101','[]'::jsonb)$command$),
   '42501',
   'ordinary authenticated users cannot edit showcase images');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_save_showcase_style_group(null,'脚丫马克杯','Footed mug','c1200000-0000-4000-8000-000000000101','[]'::jsonb)$command$),
+  '42501',
+  'ordinary authenticated users cannot save style groups');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_dissolve_showcase_style_group('c1200000-0000-4000-8000-000000000301')$command$),
+  '42501',
+  'ordinary authenticated users cannot dissolve style groups');
 
 reset role;
 select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -232,16 +243,67 @@ select results_eq(
   $values$values ('苹果盘'::text, 12.50::numeric)$values$,
   'optional item edits persist together');
 
+create temporary table saved_style_group (id uuid not null);
+grant insert, select on table pg_temp.saved_style_group to authenticated;
+select lives_ok(
+  $command$insert into saved_style_group
+    select public.admin_save_showcase_style_group(
+      null,
+      '脚丫马克杯',
+      'Footed mug',
+      'c1200000-0000-4000-8000-000000000101',
+      '[{"itemId":"c1200000-0000-4000-8000-000000000101","labelZh":"微笑","labelEn":"Smiling","sortOrder":0},{"itemId":"c1200000-0000-4000-8000-000000000102","labelZh":"调皮","labelEn":"Playful","sortOrder":1}]'::jsonb
+    )$command$,
+  'admin groups two showcase items as styles without changing the items');
+select is((select count(*)::integer from public.showcase_style_group_translations where group_id = (select id from saved_style_group)), 2, 'style group stores zh and en names');
+select results_eq(
+  $query$select item_id, sort_order from public.showcase_style_group_items where group_id = (select id from saved_style_group) order by sort_order$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000101'::uuid, 0), ('c1200000-0000-4000-8000-000000000102'::uuid, 1)$values$,
+  'style group stores a dense explicit member order');
+select is(
+  pg_temp.sqlstate_of($command$select public.admin_save_showcase_style_group(
+    null,'重复分组','Duplicate','c1200000-0000-4000-8000-000000000101',
+    '[{"itemId":"c1200000-0000-4000-8000-000000000101","labelZh":"一","labelEn":"One","sortOrder":0},{"itemId":"c1200000-0000-4000-8000-000000000102","labelZh":"二","labelEn":"Two","sortOrder":1}]'::jsonb
+  )$command$),
+  '23505',
+  'one showcase item cannot belong to two style groups');
+select lives_ok(
+  $command$select public.admin_save_showcase_style_group(
+    (select id from saved_style_group),'脚丫马克杯','Footed mug','c1200000-0000-4000-8000-000000000102',
+    '[{"itemId":"c1200000-0000-4000-8000-000000000101","labelZh":"笑脸","labelEn":"Smiling","sortOrder":0},{"itemId":"c1200000-0000-4000-8000-000000000102","labelZh":"调皮","labelEn":"Playful","sortOrder":1}]'::jsonb
+  )$command$,
+  'admin can edit labels and change the featured style');
+select results_eq(
+  $query$select g.featured_item_id, t.label from public.showcase_style_groups g join public.showcase_style_group_item_translations t on t.group_id = g.id and t.item_id = 'c1200000-0000-4000-8000-000000000101' and t.locale = 'zh' where g.id = (select id from saved_style_group)$query$,
+  $values$values ('c1200000-0000-4000-8000-000000000102'::uuid, '笑脸'::text)$values$,
+  'edited featured style and localized label persist together');
+
+reset role;
+set local role anon;
+select is((select count(*)::integer from public.showcase_style_groups), 1, 'anon sees a published style group with two visible members');
+select is((select count(*)::integer from public.showcase_style_group_items), 2, 'anon sees both public style choices');
+
+reset role;
+select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+set local role authenticated;
+
 select lives_ok($command$select public.admin_update_showcase_items(array['c1200000-0000-4000-8000-000000000101'::uuid],'sold')$command$, 'admin marks an item sold in one action');
 select lives_ok($command$select public.admin_update_showcase_items(array['c1200000-0000-4000-8000-000000000102'::uuid],'archived')$command$, 'admin archives an item without deleting it');
 
 reset role;
 set local role anon;
 select is((select count(*)::integer from public.showcase_items), 1, 'anon sees published sold items but not archived items');
+select is((select count(*)::integer from public.showcase_style_groups), 0, 'anon no longer sees a group after fewer than two members remain visible');
 select is(pg_temp.sqlstate_of($command$insert into public.showcase_tags (slug) values ('blocked')$command$), '42501', 'anon cannot write showcase data');
 
 reset role;
-select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 16, 'successful showcase operations append sixteen audit events');
+select set_config('request.jwt.claims', '{"sub":"c1200000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($command$select public.admin_dissolve_showcase_style_group((select id from saved_style_group))$command$, 'admin can dissolve a style group without deleting its products');
+select is((select count(*)::integer from public.showcase_items where id in ('c1200000-0000-4000-8000-000000000101','c1200000-0000-4000-8000-000000000102')), 2, 'dissolving a style group preserves both showcase items');
+
+reset role;
+select is((select count(*)::integer from public.admin_audit_logs where action like 'showcase.%'), 19, 'successful showcase operations append nineteen audit events');
 
 create temporary table zero_ai_fifty_payload (items jsonb not null);
 grant select on table pg_temp.zero_ai_fifty_payload to authenticated;

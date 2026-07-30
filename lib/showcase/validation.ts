@@ -14,6 +14,8 @@ export const MAX_SHOWCASE_IMAGES_PER_ITEM = 10;
 export const MAX_SHOWCASE_TAGS_PER_ITEM = 10;
 export const MIN_SHOWCASE_DISPLAY_ITEMS = 2;
 export const MAX_SHOWCASE_DISPLAY_ITEMS = 8;
+export const MIN_SHOWCASE_STYLE_GROUP_ITEMS = 2;
+export const MAX_SHOWCASE_STYLE_GROUP_ITEMS = 6;
 export const SHOWCASE_PRESENTATION_PRESETS = [
   "sunny_shelf",
   "joyful_scrapbook",
@@ -42,6 +44,13 @@ export type ShowcasePublishItemInput = {
   priceCad: string;
   tagIds: string[];
   images: ShowcaseImageInput[];
+};
+
+export type ShowcaseStyleGroupMemberInput = {
+  itemId: string;
+  labelZh: string;
+  labelEn: string;
+  sortOrder: number;
 };
 
 type ValidationResult<T> = { success: true; values: T } | { success: false; message: string };
@@ -93,6 +102,56 @@ export function parseShowcaseDisplaySet(
     return { success: false, message: "主推商品必须属于当前新品展台。" };
   }
   return { success: true, values: { itemIds: uniqueItemIds, presentationPreset, featuredItemId } };
+}
+
+export function parseShowcaseStyleGroup(
+  groupId: string | null,
+  nameZh: string,
+  nameEn: string,
+  featuredItemId: string,
+  members: ShowcaseStyleGroupMemberInput[],
+): ValidationResult<{
+  groupId: string | null;
+  nameZh: string;
+  nameEn: string;
+  featuredItemId: string;
+  members: ShowcaseStyleGroupMemberInput[];
+}> {
+  const normalizedNameZh = nameZh.trim();
+  const normalizedNameEn = nameEn.trim();
+  if (groupId !== null && !isUuid(groupId)) return { success: false, message: "款式组标识无效。" };
+  if (normalizedNameZh.length < 1 || normalizedNameZh.length > 120 || normalizedNameEn.length > 120) {
+    return { success: false, message: "系列中文名称必填且最多 120 字；英文名称最多 120 字。" };
+  }
+  if (members.length < MIN_SHOWCASE_STYLE_GROUP_ITEMS || members.length > MAX_SHOWCASE_STYLE_GROUP_ITEMS) {
+    return { success: false, message: `每个款式组需要 ${MIN_SHOWCASE_STYLE_GROUP_ITEMS}–${MAX_SHOWCASE_STYLE_GROUP_ITEMS} 件商品。` };
+  }
+  const itemIds = members.map((member) => member.itemId);
+  if (new Set(itemIds).size !== members.length || itemIds.some((id) => !isUuid(id))) {
+    return { success: false, message: "款式组商品重复或无效。" };
+  }
+  if (!isUuid(featuredItemId) || !itemIds.includes(featuredItemId)) {
+    return { success: false, message: "主展示款必须属于当前款式组。" };
+  }
+  const normalizedMembers = members.map((member, index) => ({
+    itemId: member.itemId,
+    labelZh: member.labelZh.trim(),
+    labelEn: member.labelEn.trim(),
+    sortOrder: index,
+  }));
+  if (normalizedMembers.some((member) => member.labelZh.length < 1 || member.labelZh.length > 60 || member.labelEn.length > 60)) {
+    return { success: false, message: "每个中文款式名必填且最多 60 字；英文款式名最多 60 字。" };
+  }
+  return {
+    success: true,
+    values: {
+      groupId,
+      nameZh: normalizedNameZh,
+      nameEn: normalizedNameEn,
+      featuredItemId,
+      members: normalizedMembers,
+    },
+  };
 }
 
 export function parseShowcasePublishPayload(

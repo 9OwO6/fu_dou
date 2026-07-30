@@ -6,6 +6,7 @@ import {
   parseShowcaseDisplaySet,
   parseShowcaseImageEditPayload,
   parseShowcasePublishPayload,
+  parseShowcaseStyleGroup,
 } from "@/lib/showcase/validation";
 
 const batchId = "b1000000-0000-4000-8000-000000000001";
@@ -154,5 +155,35 @@ describe("quick showcase image edit validation", () => {
       { id: imageId, storagePath: `showcase/${itemId}/${imageId}.webp` },
       { id: imageId, storagePath: `showcase/${itemId}/${imageId}.jpg` },
     ]))).toMatchObject({ success: false });
+  });
+});
+
+describe("showcase style group validation", () => {
+  const members = [
+    { itemId: "b1000000-0000-4000-8000-000000000021", labelZh: "微笑", labelEn: "Smiling", sortOrder: 4 },
+    { itemId: "b1000000-0000-4000-8000-000000000022", labelZh: "调皮", labelEn: "Playful", sortOrder: 9 },
+  ];
+
+  it("normalizes a bilingual two-item style group and dense order", () => {
+    expect(parseShowcaseStyleGroup(null, " 脚丫马克杯 ", " Footed mug ", members[0].itemId, members)).toEqual({
+      success: true,
+      values: {
+        groupId: null,
+        nameZh: "脚丫马克杯",
+        nameEn: "Footed mug",
+        featuredItemId: members[0].itemId,
+        members: [
+          { ...members[0], sortOrder: 0 },
+          { ...members[1], sortOrder: 1 },
+        ],
+      },
+    });
+  });
+
+  it("rejects a singleton, duplicate item, blank Chinese label, and outside featured item", () => {
+    expect(parseShowcaseStyleGroup(null, "脚丫马克杯", "", members[0].itemId, members.slice(0, 1))).toMatchObject({ success: false });
+    expect(parseShowcaseStyleGroup(null, "脚丫马克杯", "", members[0].itemId, [members[0], members[0]])).toMatchObject({ success: false });
+    expect(parseShowcaseStyleGroup(null, "脚丫马克杯", "", members[0].itemId, [{ ...members[0], labelZh: "" }, members[1]])).toMatchObject({ success: false });
+    expect(parseShowcaseStyleGroup(null, "脚丫马克杯", "", batchId, members)).toMatchObject({ success: false });
   });
 });

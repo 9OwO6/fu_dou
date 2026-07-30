@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppLocale } from "@/lib/i18n/config";
 
+import { groupPublicShowcaseItems } from "./grouping";
 import { SHOWCASE_IMAGE_BUCKET } from "./validation";
 import type { ShowcaseDisplayPreset } from "./validation";
 
@@ -28,6 +29,17 @@ type RawDisplaySet = {
   featured_item_id: string | null;
   showcase_display_set_items: Array<{ item_id: string; sort_order: number }>;
 };
+type RawStyleGroupMember = {
+  item_id: string;
+  sort_order: number;
+  showcase_style_group_item_translations: Array<{ locale: string; label: string }>;
+};
+type RawStyleGroup = {
+  id: string;
+  featured_item_id: string;
+  showcase_style_group_translations: Array<{ locale: string; name: string }>;
+  showcase_style_group_items: RawStyleGroupMember[];
+};
 
 export type ShowcaseTag = { id: string; slug: string; name: string; nameZh: string; nameEn: string; sortOrder: number };
 export type ShowcaseImage = { id: string; signedUrl: string; altText: string; sortOrder: number; width: number | null; height: number | null };
@@ -37,6 +49,21 @@ export type ShowcaseDisplaySet = {
   featuredItemId: string;
   itemIds: string[];
   isFallback: boolean;
+};
+export type ShowcaseStyleGroupMember = {
+  itemId: string;
+  label: string;
+  labelZh: string;
+  labelEn: string;
+  sortOrder: number;
+};
+export type ShowcaseStyleGroup = {
+  id: string;
+  name: string;
+  nameZh: string;
+  nameEn: string;
+  featuredItemId: string;
+  members: ShowcaseStyleGroupMember[];
 };
 
 export type PublicShowcaseItem = {
@@ -50,6 +77,7 @@ export type PublicShowcaseItem = {
   batchId: string;
   tags: ShowcaseTag[];
   images: ShowcaseImage[];
+  styleGroup: ShowcaseStyleGroup | null;
 };
 
 export type AdminShowcaseItem = Omit<PublicShowcaseItem, "availability"> & {
@@ -58,6 +86,12 @@ export type AdminShowcaseItem = Omit<PublicShowcaseItem, "availability"> & {
   titleEn: string;
   descriptionZh: string;
   descriptionEn: string;
+};
+export type ShowcaseItemEntry = {
+  key: string;
+  group: ShowcaseStyleGroup | null;
+  items: PublicShowcaseItem[];
+  featuredItem: PublicShowcaseItem;
 };
 
 function translation(items: Translation[], locale: AppLocale) {
@@ -100,6 +134,51 @@ function mapImages(raw: RawImage[], locale: AppLocale, urls: Map<string, string>
       width: image.width,
       height: image.height,
     }));
+}
+
+function mapStyleGroups(rawGroups: RawStyleGroup[], locale: AppLocale) {
+  const groups = rawGroups.map((raw): ShowcaseStyleGroup => {
+    const nameZh = raw.showcase_style_group_translations.find((entry) => entry.locale === "zh")?.name ?? "";
+    const nameEn = raw.showcase_style_group_translations.find((entry) => entry.locale === "en")?.name ?? "";
+    const members = [...raw.showcase_style_group_items]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((member): ShowcaseStyleGroupMember => {
+        const labelZh = member.showcase_style_group_item_translations.find((entry) => entry.locale === "zh")?.label ?? "";
+        const labelEn = member.showcase_style_group_item_translations.find((entry) => entry.locale === "en")?.label ?? "";
+        return {
+          itemId: member.item_id,
+          label: (locale === "zh" ? labelZh : labelEn) || (locale === "zh" ? "款式" : "Style"),
+          labelZh,
+          labelEn,
+          sortOrder: member.sort_order,
+        };
+      });
+    return {
+      id: raw.id,
+      name: (locale === "zh" ? nameZh : nameEn) || (locale === "zh" ? "新品款式组" : "New style collection"),
+      nameZh,
+      nameEn,
+      featuredItemId: raw.featured_item_id,
+      members,
+    };
+  });
+  return new Map(groups.flatMap((group) => group.members.map((member) => [member.itemId, group] as const)));
+}
+
+async function loadStyleGroupMap(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  locale: AppLocale,
+) {
+  const { data, error } = await supabase
+    .from("showcase_style_groups")
+    .select(`
+      id, featured_item_id,
+      showcase_style_group_translations(locale, name),
+      showcase_style_group_items!showcase_style_group_items_group_id_fkey(item_id, sort_order, showcase_style_group_item_translations(locale, label))
+    `)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error("展示款式组暂时无法加载。");
+  return mapStyleGroups(data as unknown as RawStyleGroup[], locale);
 }
 
 const itemSelect = `
@@ -159,14 +238,17 @@ export async function listShowcaseTags(locale: AppLocale, includeHidden = false)
   return (data as unknown as RawTag[]).map((tag) => mapTag(tag, locale));
 }
 
-export async function listPublicShowcaseItems(locale: AppLocale): Promise<PublicShowcaseItem[]> {
+async function listPublicShowcaseItemsWithLimit(locale: AppLocale, limit: number): Promise<PublicShowcaseItem[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("showcase_items")
-    .select(itemSelect)
-    .neq("availability", "archived")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [{ data, error }, styleGroupMap] = await Promise.all([
+    supabase
+      .from("showcase_items")
+      .select(itemSelect)
+      .neq("availability", "archived")
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    loadStyleGroupMap(supabase, locale),
+  ]);
   if (error) throw new Error("新鲜到店暂时无法加载。");
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
@@ -188,17 +270,31 @@ export async function listPublicShowcaseItems(locale: AppLocale): Promise<Public
         .map((tag) => mapTag(tag, locale))
         .sort((a, b) => a.sortOrder - b.sortOrder),
       images: mapImages(item.showcase_item_images, locale, urls),
+      styleGroup: styleGroupMap.get(item.id) ?? null,
     };
   });
 }
 
+export async function listPublicShowcaseItems(locale: AppLocale): Promise<PublicShowcaseItem[]> {
+  return listPublicShowcaseItemsWithLimit(locale, 200);
+}
+
+export async function listLatestPublicShowcaseItems(locale: AppLocale, limit = 8): Promise<PublicShowcaseItem[]> {
+  const safeLimit = Math.min(10, Math.max(5, Math.trunc(limit)));
+  const candidates = await listPublicShowcaseItemsWithLimit(locale, safeLimit * 6);
+  return groupPublicShowcaseItems(candidates).slice(0, safeLimit).flatMap((entry) => entry.items);
+}
+
 export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("showcase_items")
-    .select(itemSelect)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [{ data, error }, styleGroupMap] = await Promise.all([
+    supabase
+      .from("showcase_items")
+      .select(itemSelect)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    loadStyleGroupMap(supabase, "zh"),
+  ]);
   if (error) throw new Error("快速上新管理资料暂时无法加载。");
   const rows = data as unknown as RawItem[];
   const paths = rows.flatMap((item) => item.showcase_item_images.map((image) => image.storage_path));
@@ -225,6 +321,7 @@ export async function listAdminShowcaseItems(): Promise<AdminShowcaseItem[]> {
         .map((tag) => mapTag(tag, "zh"))
         .sort((a, b) => a.sortOrder - b.sortOrder),
       images: mapImages(item.showcase_item_images, "zh", urls),
+      styleGroup: styleGroupMap.get(item.id) ?? null,
     };
   });
 }
