@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import {
   createShowcaseTagAction,
+  deleteShowcaseItemAction,
   deleteShowcaseImageAction,
   dissolveShowcaseStyleGroupAction,
   moveShowcaseImageAction,
@@ -265,6 +266,23 @@ export function ShowcaseManager({ initialDisplaySet, initialItems, tags }: { ini
     }
   }
 
+  async function permanentlyDelete(item: AdminShowcaseItem) {
+    if (!window.confirm(`永久删除 ${item.shortCode}？\n\n此删除不可逆，将同时删除该商品的全部图片和展示资料。`)) return;
+    setPending(true);
+    setMessage("正在永久删除展示商品…");
+    const result = await deleteShowcaseItemAction(item.id);
+    setPending(false);
+    setMessage(result.message);
+    if (result.status === "success") {
+      setSelected((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+      router.refresh();
+    }
+  }
+
   function openNewStyleGroup(ids = [...selected]) {
     const candidates = ids.map((id) => initialItems.find((item) => item.id === id)).filter((item): item is AdminShowcaseItem => Boolean(item));
     if (candidates.length < MIN_SHOWCASE_STYLE_GROUP_ITEMS || candidates.length > MAX_SHOWCASE_STYLE_GROUP_ITEMS) {
@@ -362,8 +380,9 @@ export function ShowcaseManager({ initialDisplaySet, initialItems, tags }: { ini
                 <div className="mt-4 flex flex-wrap gap-2">
                   {item.styleGroup ? <button className="rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800" onClick={() => openExistingStyleGroup(item.styleGroup!)} type="button">编辑款式组</button> : null}
                   {item.styleGroup ? <button className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700" disabled={pending} onClick={() => void dissolveStyleGroup(item.styleGroup!)} type="button">拆散</button> : null}
-                  {item.availability !== "sold" ? <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("sold", [item.id])} type="button">一键售完</button> : <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("inquiry", [item.id])} type="button">恢复展示</button>}
+                  {item.availability === "inquiry" ? <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("sold", [item.id])} type="button">一键售完</button> : <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={() => void updateStatus("inquiry", [item.id])} type="button">恢复展示</button>}
                   {item.availability !== "archived" ? <button className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700" onClick={() => void updateStatus("archived", [item.id])} type="button">归档</button> : null}
+                  {item.availability === "archived" ? <button className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 disabled:opacity-50" disabled={pending} onClick={() => void permanentlyDelete(item)} type="button">永久删除</button> : null}
                 </div>
               </div>
               <ItemEditor item={item} tags={tags} />

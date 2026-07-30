@@ -3,6 +3,19 @@
 > 最后更新：2026-07-30（America/Vancouver）
 > 当前执行基线：`HAPPY_BEANS完整开发计划.md`
 
+## 快速展示商品受控永久删除
+
+- 状态：本地实现、数据库、安全检查与真实浏览器核心删除路径均已完成；尚未 commit、push、应用远端 migration 或部署 Production。
+- 实施日期：2026-07-30（America/Vancouver）。
+- 完成内容：管理墙只为已归档展示商品提供“永久删除”。点击后使用浏览器确认框明确提示“此删除不可逆”，确认后删除展示商品、翻译、标签关系、图片元数据、展台引用及款式组关系，并通过 Storage API 删除全部实际图片文件。
+- 安全边界：`admin_delete_showcase_item` 使用 `security invoker`、空 `search_path`、管理员复核和现有 RLS；普通 authenticated 用户无权调用，未归档商品由数据库强制拒绝。删除一个款式组成员时只拆散分组关系，其他展示商品不删除。
+- 部分失败：数据库事务先返回待清理 Storage 路径，Server Action 再使用 Storage API 删除对象；若文件清理失败，商品仍保持已永久删除并向管理员显示明确警告，避免重新出现公开卡片，但可能需要技术人员清理孤立文件。
+- 边界：仍只作用于独立快速展示模型，不删除或修改正式 `products / variants / inventory / cart / order_requests`。
+- 已执行检查：最终 migration 从零 `db:reset` 成功；12 个 pgTAP 文件共 282/282 通过，Supabase advisors 为 0 问题；`db:lint` 退出码为 0，输出仅包含本地 `pgtap/extensions` 的既有兼容性提示，未报告本次 `public/private` 函数问题。`lint`、`typecheck`、全量 Vitest 15 个文件 67/67、Next.js 16.2.12 production build（27 条路由）和 `git diff --check` 均通过。
+- 真实浏览器：使用一次性本地管理员、已归档展示商品和真实 Storage 对象验证“永久删除”按钮、不可逆确认文案、确认删除、成功提示、卡片消失及图片对象移除；390×844 无页面级横向溢出。Chrome 自动化已实际显示原生确认框，但该原生对话框会阻塞自动化工具，因此“点击取消后商品仍保留”留作店主人工复核。验收后已清除临时 Storage 对象、停止本地服务并再次 `db:reset`，临时账号和商品均未保留。
+- 当前迭代是否真正完成：本地代码、数据库和核心永久删除路径完成；严格 UI 人工验收仍需店主复核一次确认框“取消”路径。尚未上线，Production 仍是上一版。
+- 下一步启动条件：具备 commit、push、远端 migration、Vercel 部署与 Production smoke test 条件，但需用户另行明确授权；无需新增环境变量、外部账号或 npm 依赖。
+
 ## 快速展示“同品不同款式”分组
 
 - 状态：功能、数据库、安全、真实浏览器、Git 推送、远端 migration 与 Production 部署均已完成。

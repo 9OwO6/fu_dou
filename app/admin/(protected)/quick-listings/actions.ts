@@ -178,6 +178,29 @@ export async function updateShowcaseItemsStatusAction(
   return { status: "success", message: `已更新 ${uniqueIds.length} 个展示商品。` };
 }
 
+export async function deleteShowcaseItemAction(itemId: string): Promise<ShowcaseActionState> {
+  await requireAdmin();
+  if (!isUuid(itemId)) return errorState("展示商品标识无效。");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("admin_delete_showcase_item", { p_item_id: itemId });
+  if (error) {
+    if (error.code === "23514") return errorState("只有已归档的展示商品才能永久删除，请先归档。");
+    if (error.code === "P0002") return errorState("该展示商品已不存在，请刷新页面。");
+    return errorState("展示商品暂时无法永久删除，请稍后重试。");
+  }
+  if (!isRecord(data) || !Array.isArray(data.storage_paths)) {
+    revalidateShowcasePaths();
+    return { status: "success", message: "展示商品已永久删除，但图片清理结果无法确认，请联系技术人员检查 Storage。" };
+  }
+
+  const storagePaths = data.storage_paths.filter((path): path is string => typeof path === "string");
+  const storageCleaned = storagePaths.length === data.storage_paths.length && await removeBatchPaths(storagePaths);
+  revalidateShowcasePaths();
+  return storageCleaned
+    ? { status: "success", message: "展示商品及全部图片已永久删除，此操作不可恢复。" }
+    : { status: "success", message: "展示商品已永久删除，但部分图片文件未能清理，请联系技术人员检查 Storage。" };
+}
+
 export async function updateShowcaseItemAction(
   itemId: string,
   _previousState: ShowcaseActionState,

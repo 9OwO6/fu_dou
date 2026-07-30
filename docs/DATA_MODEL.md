@@ -281,3 +281,4 @@ Phase 6 已根据确认结论采用多分类模型：`product_categories(product
 - 每组必须由 2–6 个已发布、未归档展示商品组成。四表全部启用 RLS并显式授予最小权限；匿名仅能读取仍有至少两个公开成员的组。`admin_save_showcase_style_group` 与 `admin_dissolve_showcase_style_group` 均为 `security invoker`，只向 `authenticated` 授权并再次复核管理员，保存/拆散写入审计日志。
 - 分组外键使用级联删除清理失去成员的附属资料；主动“拆散”只删除组及其 translations/members，不触碰 `showcase_items`、图片、价格、标签或状态。该模型不引用正式商品、SKU、库存、购物车或订单请求。
 - `012_quick_showcase_pilot.test.sql` 已更新为 71 个断言；最终 migration 已从零重建，当前 12 个 pgTAP 文件共 274/274 通过，schema lint 与 Supabase advisors 均无问题。
+- migration `20260730192203_controlled_showcase_item_delete.sql` 新增 `admin_delete_showcase_item`。该 `security invoker` RPC 只允许管理员删除 `availability = archived` 的展示商品；删除前收集全部 Storage 路径并拆散所属款式组，随后由外键级联清理 translations、images metadata、tags 与 display-set links，保留其他展示商品并写入审计。当前 `012_quick_showcase_pilot.test.sql` 为 79 个断言，全库 12 个 pgTAP 文件共 282/282 通过。
